@@ -1,0 +1,9 @@
+# Review routing only; enforcement requires the repository's branch/ruleset settings.
+/.github/ @Luis85
+/scripts/ @Luis85
+/manifest.json @Luis85
+/versions.json @Luis85
+/package.json @Luis85
+/package-lock.json @Luis85
+/docs/releases/ @Luis85
+/SECURITY.md @Luis85

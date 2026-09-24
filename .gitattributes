@@ -1,0 +1,7 @@
+# Keep checked-out source and release text assets consistent across developer platforms.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary

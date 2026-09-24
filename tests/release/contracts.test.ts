@@ -19,12 +19,12 @@ describe('release version and identity policy', () => {
   });
   it('validates manifest, package, lockfile and compatibility together', () => {
     expect(validateMetadata(manifest, pkg, versions, lock)).toEqual(manifest);
-    expect(() => validateMetadata(manifest, { ...pkg, version: '2.0.0' }, versions, lock)).toThrow();
-    expect(() => validateMetadata(manifest, pkg, {}, lock)).toThrow();
-    expect(() => validateMetadata({ ...manifest, description: 'Missing period' }, pkg, versions, lock)).toThrow();
-    expect(() => validateMetadata({ ...manifest, fundingUrl: 'https://example.com' }, pkg, versions, lock)).toThrow();
-    expect(() => validateMetadata({ ...manifest, minAppVersion: '1.12.0' }, pkg, versions, lock)).toThrow();
-    expect(() => validateMetadata(manifest, pkg, versions, { ...lock, version: '0.0.0' })).toThrow();
+    expect(() => { validateMetadata(manifest, { ...pkg, version: '2.0.0' }, versions, lock); }).toThrow();
+    expect(() => { validateMetadata(manifest, pkg, {}, lock); }).toThrow();
+    expect(() => { validateMetadata({ ...manifest, description: 'Missing period' }, pkg, versions, lock); }).toThrow();
+    expect(() => { validateMetadata({ ...manifest, fundingUrl: 'https://example.com' }, pkg, versions, lock); }).toThrow();
+    expect(() => { validateMetadata({ ...manifest, minAppVersion: '1.12.0' }, pkg, versions, lock); }).toThrow();
+    expect(() => { validateMetadata(manifest, pkg, versions, { ...lock, version: '0.0.0' }); }).toThrow();
   });
   it('rejects a conflicting directory ID but accepts its own existing listing', () => {
     expect(() => assertDirectoryIdentity([{ id: 'other', repo: 'example/other' }])).not.toThrow();
@@ -67,6 +67,6 @@ describe('deterministic release packages', () => {
     const root = await setup(); await packageRelease(root, source);
     const checksums = await readFile(path.join(root, 'reports/release/package/SHA256SUMS'), 'utf8');
     expect(checksums.trim().split('\n')).toHaveLength(3);
-    expect(checksums).toMatch(/^[a-f0-9]{64}  main\.js/mu);
+    expect(checksums).toMatch(/^[a-f0-9]{64} {2}main\.js/mu);
   });
 });
