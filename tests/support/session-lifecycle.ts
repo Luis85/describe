@@ -1,0 +1,86 @@
+export interface SessionSteps<T> {
+  prepare(): Promise<void>;
+  connect(): Promise<T>;
+  initialize(session: T): Promise<void>;
+  disconnect(session: T): Promise<unknown>;
+  cleanup(): Promise<void>;
+}
+
+/** One owner for partial startup, cancellation and idempotent teardown. */
+export class SessionLifecycle<T> {
+  private client: T | undefined;
+  private starting: Promise<T> | undefined;
+  private closing: Promise<void> | undefined;
+  private releasing: Promise<void> | undefined;
+  private stopped = false;
+
+  constructor(private readonly steps: SessionSteps<T>) {}
+
+  start(): Promise<T> {
+    if (this.stopped) return Promise.reject(new Error('Native session has been closed.'));
+    this.starting ??= this.acquire();
+    return this.starting;
+  }
+
+  close(): Promise<void> {
+    this.stopped = true;
+    this.closing ??= (async () => {
+      // A late connection still belongs to us and must be closed when it arrives.
+      await this.starting?.catch(() => undefined);
+      await this.release();
+    })();
+    return this.closing;
+  }
+
+  private assertActive(): void {
+    if (this.stopped) throw new Error('Native session startup was cancelled.');
+  }
+
+  private async acquire(): Promise<T> {
+    try {
+      await this.steps.prepare();
+      this.assertActive();
+      this.client = await this.steps.connect();
+      this.assertActive();
+      await this.steps.initialize(this.client);
+      this.assertActive();
+      return this.client;
+    } catch (error) {
+      this.stopped = true;
+      try { await this.release(); }
+      catch (cleanupError) { throw new AggregateError([error, cleanupError], 'Native startup and cleanup failed.'); }
+      throw error;
+    }
+  }
+
+  private release(): Promise<void> {
+    this.releasing ??= (async () => {
+      const failures: unknown[] = [];
+      if (this.client !== undefined) {
+        try { await this.steps.disconnect(this.client); }
+        catch (error) { failures.push(error); }
+        this.client = undefined;
+      }
+      // Directory cleanup must run even when session deletion fails.
+      try { await this.steps.cleanup(); }
+      catch (error) { failures.push(error); }
+      if (failures.length) throw new AggregateError(failures, 'Native teardown failed.');
+    })();
+    return this.releasing;
+  }
+}
+
+/** Preserve a test/setup failure even when teardown independently fails. */
+export async function withSession<T, R>(session: SessionLifecycle<T>, use: (client: T) => Promise<R>): Promise<R> {
+  let failed = false;
+  let failure: unknown;
+  try { return await use(await session.start()); }
+  catch (error) { failed = true; failure = error; throw error; }
+  finally {
+    try { await session.close(); }
+    catch (error) {
+      if (failed) throw new AggregateError([failure, error], 'Native operation and teardown failed.');
+      throw error;
+    }
+  }
+}
