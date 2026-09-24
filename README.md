@@ -2,47 +2,45 @@
 
 Create a structured Markdown description for any file or folder exposed by your Obsidian vault. Keep the original untouched while adding a meaningful name, full description, tags, category, color and aliases in a separate note.
 
-**Requires Obsidian 1.13.7 or newer.** Designed for desktop and mobile, using native Obsidian controls and public Vault APIs. Release preparation is tracked in [the release checklist](docs/releasing.md); implementation and automated tests are not a substitute for real-device smoke testing or directory approval.
+**Requires Obsidian 1.13.7 or newer.** Uses native Obsidian controls, declarative settings and public Vault APIs. Designed for desktop and mobile. Automated host testing, real-device acceptance and Community-directory approval are distinct milestones; see [verification](docs/verification.md).
 
 ## Describe an item
 
-1. Right-click a file or folder in the file explorer and choose **Describe!**. On mobile, use the item's context menu, or run **Describe: Choose a file or folder** from the command palette. The **Add description to current file** command is also available.
-2. Enter a name and a full Markdown description. The name belongs to the new description note; it does not rename the original.
+1. Right-click a visible file or non-root folder and choose **Describe!**. On mobile, use its context menu or **Describe: Choose a file or folder** in the command palette. **Add description to current file** is also available.
+2. Enter a name and full Markdown description. The name belongs to the new note; it does not rename the original.
 3. Expand **Tags, category, color and aliases** to add optional metadata.
 4. Choose the destination and select **Save description**. `Ctrl+Enter` / `Cmd+Enter` also saves.
 
-The first time you describe a file type, the dialog asks for its default destination. This preference is remembered only after a note is successfully created. Canceling does not create a note or change the mapping.
+The first description for a file type asks for its future default destination. This mapping is remembered only after a note is created. Canceling creates no note and changes no mapping. If another dialog configured the type meanwhile, the newer mapping is preserved and the saved note remains valid.
 
 ### Metadata
 
 | Field | Input and storage |
 | --- | --- |
-| Name | Required, one line; the note heading and basis of the new filename. |
-| Description | Required Markdown; the complete text is preserved in the body. |
-| Tags | Spaces or commas separate tags. A leading `#` is optional. Nested tags such as `project/home` are supported. Stored as a YAML list without `#`. |
-| Category | Optional single text value. |
-| Color | Optional six-digit hexadecimal value, with a picker and a clear action. Stored as text, not a theme override. |
-| Aliases | One alternative name per line. Commas remain part of an alias. Stored in the standard `aliases` property of the description note. |
+| Name | Required single line; heading and basis of the new filename. Maximum 200 Unicode code points. |
+| Description | Required Markdown. The complete text stays in the body; a character count explains the 80-character frontmatter summary. |
+| Tags | Spaces or commas separate tags; a leading `#` is optional. Nested tags such as `project/home` are supported. Stored as a YAML list without `#`. |
+| Category | Optional single line, maximum 120 Unicode code points. |
+| Color | Optional six-digit hexadecimal text, synchronized with the picker; **Clear color** removes it. |
+| Aliases | One alternative name per line. Commas remain part of an alias. Stored in the standard `aliases` property. |
 
-Repeated tags and aliases are deduplicated case-insensitively. Aliases apply to the **description note**, not to the source attachment or folder. Color is stored metadata; the plugin does not recolor the file explorer.
+Tags and aliases are deduplicated case-insensitively and limited to 100 each. Each alias is limited to 200 Unicode code points. Aliases apply to the **description note**, not to the source attachment or folder. Color is metadata; the plugin does not recolor the file explorer.
 
-### Destination choices
+Invalid metadata opens the relevant section and focuses its field. Save failures preserve the draft. During saving, controls are disabled and progress is announced separately from errors. A successfully created note is not reported as a failed creation just because opening it or remembering a destination subsequently failed.
 
-| Choice | Selected file `Assets/photo.jpg` | Selected folder `Projects/Home` |
+### Destinations
+
+| Choice | File `Assets/photo.jpg` | Folder `Projects/Home` |
 | --- | --- | --- |
-| Configured folder | Uses the saved `.jpg` destination | Uses the saved folder destination |
+| Configured folder | Saved `.jpg` destination | Saved folder destination |
 | Same folder | `Assets/<name>.md` | `Projects/Home/<name>.md` |
 | Descriptions subfolder | `Assets/descriptions/<name>.md` | `Projects/Home/descriptions/<name>.md` |
 
-The subfolder name can be changed per note, including nested paths such as `Metadata/Descriptions`. The global default is configurable. An empty configured destination means the vault root. Newly required destination folders are created automatically.
+The local subfolder is freely configurable per note, including nested paths such as `Metadata/Descriptions`. Empty configured destinations mean the vault root; local subfolders cannot be empty. Missing destination folders are created automatically. Existing notes are not overwritten: collisions receive ` (2)`, ` (3)`, and later suffixes. Unsafe filename characters are replaced and long filenames shortened without shortening the name property.
 
-Settings provide the suggested destination for new file types, default save mode, local subfolder name, open-after-save preference, and a searchable list of known file types. Remove a mapping to be asked about that type again. Folder mappings, extensionless files and a file extension literally named `.folder` are separate cases. Extensions are matched case-insensitively.
+Native settings expose the default folder, default location, local subfolder name, open-after-save choice, and a searchable list of known file types. Edit a route directly in settings or delete it to be asked again. Extensions are case-insensitive. Folders, extensionless files and files with a literal `.folder` extension have separate routing keys.
 
-Existing notes are never intentionally overwritten. A name collision produces `Name (2).md`, `Name (3).md`, and so on. Unsafe filename characters are replaced, and long filenames are shortened while preserving the complete name property.
-
-## Example note
-
-For `Assets/kitchen.jpg`:
+## Example generated note
 
 ```markdown
 ---
@@ -64,55 +62,59 @@ Original kitchen layout before the renovation.
 ![[Assets/kitchen.jpg]]
 ```
 
-The frontmatter summary contains the first **80 Unicode code points**, without an added ellipsis; the body retains the complete description. Images, audio and video use embed syntax. Other types, including PDFs, use a normal wikilink. Actual playback depends on the format, codec and operating system supported by Obsidian.
+The summary contains the first **80 Unicode code points**, with no added ellipsis. The full description preserves Markdown and normalizes line endings. It is limited to 100,000 UTF-16 code units and rejects null characters. Images, audio and video receive embed syntax; other types, including PDFs, receive plain wikilinks. Playback depends on the format, codec and host operating system.
 
-Folders are recorded as `[[Projects/Home/]]` with `extension: "folder"`. This preserves a folder reference; it does not promise native folder-link navigation or folder embeddings. Files without an extension use an empty extension property. Filenames containing reserved wikilink characters are escaped; verify those uncommon names in the target host before relying on navigation.
+Folders are recorded as `[[Projects/Home/]]` with `extension: "folder"`. This records a reference, not a promise of native folder navigation. Extensionless files have an empty extension. Reserved wikilink characters are escaped; unusual source filenames still require host-navigation acceptance testing.
 
-## Installation and local development
+## Build and install locally
 
-Until a public release is available and approved in the Community directory, install a local build:
+Use **Node.js 24+ and npm 11+**:
 
 ```sh
 git clone https://github.com/Luis85/describe.git
 cd describe
-# Before PR #1 is merged:
+# Until PR #1 is merged:
 git switch feat/describe-plugin
 npm ci
 npm run check
 npm run test-build
 ```
 
-Use **Node.js 24+ and npm 11+** for development. `test-build` builds and installs `main.js`, `manifest.json` and `styles.css` into this project's `.obsidian/plugins/describe/`. Open the project directory as a vault, allow community plugins, and enable **Describe**. The installer preserves `data.json` and other vault settings and refuses unsafe symlink destinations. It does not enable the plugin automatically.
+Open the project directory as an Obsidian vault, allow community plugins and enable **Describe**. `test-build` installs only `main.js`, `manifest.json` and `styles.css` into this project's `.obsidian/plugins/describe/`. It preserves plugin `data.json` and unrelated vault settings, rejects unsafe linked destinations, and never enables the plugin automatically.
 
-For a different vault, copy the three files from `dist/` into that vault's plugin directory. Never copy `node_modules` or development tooling to a mobile device. Back up a real vault before testing a prerelease.
+For another vault, copy those three files from `dist/` into that vault's plugin directory. Do not copy `node_modules` or test tooling to a mobile device. Use a disposable vault or back up important data before testing a prerelease.
+
+## Development and testing
 
 | Command | Purpose |
 | --- | --- |
-| `npm run check` | Run all type, lint, architecture, line-count, coverage, dead-code, build and release-contract gates. |
-| `npm run typecheck` | TypeScript 7 checks both `src/` and `tests/`, plus Vite/Vitest configuration. |
-| `npm run test` / `npm run test:coverage` | Deterministic Vitest tests, optionally with enforced coverage thresholds. |
-| `npm run lint` / `npm run lint:oxlint` | Obsidian ESLint rules and Oxlint. |
-| `npm run analyze` | fallow-rs dead-code analysis. |
-| `npm run build` / `npm run dev` | Production bundle or watched bundle in `dist/`. |
-| `npm run test-build` | Build and install into the repository-local vault. |
+| `npm run check` | TypeScript, lint, actual ESLint policy regression, architecture, unit/host-double coverage, fallow-rs, build and release-package checks. |
+| `npm run typecheck` | TypeScript 7 checks source, Vitest tests, and the separate native-test project. |
+| `npm run lint` | Obsidian ESLint rules, including source/test code-line limits. |
+| `npm run lint:oxlint` / `npm run analyze` | Oxlint correctness checks / fallow-rs dead-code analysis. |
+| `npm run test` / `npm run test:coverage` | Fast deterministic Vitest tests with optional enforced coverage. |
+| `npm run test:e2e` | Build, launch real Obsidian with WebdriverIO and run native acceptance in copied synthetic vaults. |
+| `npm run build` / `npm run dev` | Production or watched bundle in `dist/`. |
+| `npm run test-build` | Build and install into the project-local vault. |
+| `node scripts/check-install.mjs` | Six disposable installer-safety contracts. |
+| `node scripts/audit.mjs` | Dependency audit, including development tools. |
 
-All executable repository scripts live in `scripts/`. Source files are limited to **400 physical lines per file**; test files to **450**. Blank lines and comments count. Vite bundles the runtime as CommonJS with only `obsidian` external.
+**ESLint is the sole LOC enforcer:** 400 code lines per source file and 450 per test file. Blank lines and comment-only lines are excluded; lines containing code plus an inline comment still count. There is no separate physical-line counter. All executable repository scripts live in `scripts/`.
 
-TypeScript 7 is installed through `@typescript/native`. The `typescript` import is deliberately aliased to Microsoft's TypeScript 6 compatibility package for tools that still require the JavaScript compiler API. The typecheck gate verifies that the executable is actually TypeScript 7. See the [official migration explanation](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/).
+Coverage includes all production TypeScript. Required minima are 90% lines, 85% statements, 85% functions and 80% branches. Fast tests on Linux/Windows/macOS do not imply that the app itself ran on all three systems.
 
-The app requirement (`1.13.7`) is independent of the published API typings (`obsidian@1.13.1`). Settings use Obsidian's [native declarative settings API](https://docs.obsidian.md/plugins/guides/migrate-declarative-settings), not a custom imitation.
+Native CI exercises the required app version, the latest public app, and a narrow-screen **desktop mobile-emulation** mode on Linux. It records resolved app/installer versions and captures failure screenshots, DOM, and accessibility output under `reports/native/`. Local native testing requires a graphical desktop session; CI uses a virtual display. Initial native execution downloads Obsidian and driver components. The fixtures are synthetic, and each test uses a fresh copy including fresh settings. Emulation is not Android/iOS device testing.
 
-## Data, privacy and limitations
+TypeScript 7.0.2 is installed through `@typescript/native`; the `typescript` import separately aliases Microsoft's TypeScript 6 JavaScript-API package for compatible lint tooling. The mandatory compiler gate checks the actual executable version. The minimum app version (1.13.7) and published API typings (`obsidian@1.13.1`) are separate. Native-tool compatibility overrides and the Electron accessibility adapter are documented in [host-test findings](docs/research/host-test-findings.md).
 
-No account, analytics, network service or external data generator is used. The plugin writes only the requested description notes and its own settings, using Obsidian APIs. User-entered Markdown is saved as text; the plugin does not evaluate it. Other plugins or the host may subsequently render that Markdown.
+## Privacy and limitations
 
-The vault root, hidden files and configuration directories are not supported description targets. Arbitrary extensions are supported when Obsidian exposes the item through its Vault API; this does not bypass the host's visibility rules. The plugin creates notes, not a database, and does not maintain a live index or automatically synchronize metadata after later source moves. Re-running Describe creates another note rather than editing an earlier description. Notes remain ordinary Markdown after the plugin is disabled or removed.
+The plugin runtime has no account, telemetry or network service. It writes the requested notes and its own settings using Obsidian APIs. Source files are not renamed or modified. Development tooling does use the network for dependencies, app downloads and advisory checks.
 
-## Project documentation
+Hidden files, configuration paths and the vault root are excluded. Arbitrary extensions are supported only when the Vault API exposes the item. Describe creates a new note each time; this release does not edit earlier descriptions or maintain a live source index. User-entered Markdown is stored as text, not executed by the plugin. Notes remain ordinary Markdown after disabling or uninstalling Describe.
 
-- [Product requirements](docs/prds/describe.md)
-- [Architecture and engineering decisions](docs/architecture.md)
-- [Test strategy and real-device acceptance checklist](docs/testing.md)
-- [Release and Community-directory submission](docs/releasing.md)
+## Documentation
 
-Report defects in the repository with reproduction steps, your Obsidian version, platform and a sanitized example. Do not include private vault contents or credentials. Licensed under [MIT](LICENSE).
+[PRD](docs/prds/describe.md) · [Architecture](docs/architecture.md) · [Testing and device acceptance](docs/testing.md) · [Testing research](docs/research/obsidian-plugin-testing.md) · [Executed-host findings](docs/research/host-test-findings.md) · [Verification](docs/verification.md) · [Release instructions](docs/releasing.md) · [Changelog](CHANGELOG.md)
+
+Report defects with reproduction steps, the tested commit, Obsidian/platform versions and sanitized examples. Do not include private vault contents or credentials. Licensed under [MIT](LICENSE).

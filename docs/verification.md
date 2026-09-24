@@ -1,38 +1,43 @@
-# Implementation verification — 2026-09-24
+# Implementation and polishing verification
 
-## Verified implementation snapshot
+Updated: 2026-09-24. Results below identify executed snapshots; the checks attached to the reviewed PR commit are the final authority. No merge, public release or Community-directory submission is implied.
 
-Commit: `a7fd556bb56ef70298cf3c2472ba7bc5f2f940a9`  
-GitHub Actions run: [36016012297](https://github.com/Luis85/describe/actions/runs/36016012297)  
-Execution environment: Ubuntu 24.04.5, Node 24.21.0, npm 11.19.0.
+## Current acceptance policy
 
-This run generated and committed the patched dependency lockfile, then verified that committed working tree. It is evidence for this exact snapshot, not an automatic assertion about later changes. The PR's final per-platform checks supersede it for the final commit.
+ESLint alone enforces 400 source / 450 test code lines per file, excluding blanks and comment-only lines. The earlier physical-line policy is superseded. An independent line counter is no longer present. The TypeScript 7 gate checks both the Vitest and native-test projects. Coverage floors are 90% lines, 85% statements/functions and 80% branches.
 
-| Check | Observed result |
+## Executed fast-suite evidence
+
+[Security/toolchain verification run 36021230200](https://github.com/Luis85/describe/actions/runs/36021230200) generated the updated lockfile commit `88feb9a6e1f07a2b6ea73bca1e56f8e848e0392e`, installed that graph and successfully ran the quality and dependency-audit gates. It verifies the committed working tree after lock generation, not merely the workflow's pre-generation parent SHA.
+
+The expanded source/test suite previously executed in [run 36019711823](https://github.com/Luis85/describe/actions/runs/36019711823) and subsequent dependency verification with these observed results:
+
+| Contract | Observed result |
 | --- | --- |
-| TypeScript | 7.0.2; source and tests passed. |
-| ESLint / Obsidian rules | Passed with zero warnings. |
-| Oxlint | Zero errors and warnings. |
-| LOC | Largest source file: 181/400; largest test file: 124/450 physical lines. |
-| Architecture | Dependency direction and mobile-safe runtime imports passed. |
-| Vitest | 116 tests passed across eight files. |
-| Coverage | Statements 94.63%; branches 89.31%; functions 91.74%; lines 98.23%. |
-| fallow-rs | No issues. |
-| Vite | CommonJS bundle built; main.js approximately 26.35 kB. |
-| Release contract | Passed asset, manifest, compatibility and export checks. |
-| test-build | Successfully installed three assets into the runner's repository-local vault. |
-| npm audit | Zero reported vulnerabilities, including development dependencies. |
+| Vitest | 143 tests across 12 files passed. |
+| V8 coverage | 98.24% lines, 95.78% statements, 91.53% branches, 94.06% functions. |
+| TypeScript | 7.0.2; source, unit tests and native test project passed. |
+| Obsidian ESLint / code-line policy | Passed in the updated toolchain verification, including actual rule-boundary fixtures. |
+| Oxlint / fallow-rs / architecture | Passed. |
+| Build and package contract | Passed; approximately 30.70 kB CommonJS main.js with only Obsidian external. |
+| Complete dependency audit | Passed after the documented native-tool upgrades/overrides. See the run for its dated advisory output. |
 
-The security refresh updated Vitest and coverage to 4.1.11 and YAML to 2.9.1. No development dependencies are included in the shipped plugin bundle. The temporary lockfile-writing workflow is removed after completing this verification.
+Early intermediate runs correctly failed on a native `.mts` lint configuration gap and vulnerable native-tool dependencies. Those findings were not suppressed; the configuration and dependency graph were corrected. Exact measured coverage applies to the observed source snapshot, not a claim that future changes inherit the result.
 
-## Final portability and installation checks
+## Native host execution and diagnostics
 
-The permanent pull-request workflow runs the quality gates on Linux, Windows and macOS. It also executes `node scripts/check-install.mjs`: six isolated filesystem contracts exercise fresh installation, preservation of plugin data and vault settings, incomplete-package failure, obstructing files, linked directories and an invalid plugin identifier. These contracts copy the exact installer into disposable fixtures; they do not modify a user's vault and do not substitute for testing the plugin in Obsidian.
+The initial [native run 36019711863](https://github.com/Luis85/describe/actions/runs/36019711863) actually launched Obsidian 1.13.7 with installer 1.13.7 on Linux in desktop mobile-emulation mode. Five of eight workflows passed. Three failures identified two ambiguous/invalid test selectors and Electron's unsupported window/new command used by axe. The captured settings page showed that native settings had rendered and the test had edited the wrong row; this was not evidence of a settings-persistence defect.
 
-Consult the checks attached to the final PR commit for the actual outcome of this matrix. Do not interpret this description of the workflow as a completed result.
+The suite now uses a correctly scoped cancel selector, an exact settings-row selector with an initial-value assertion, and axe's documented iframe-free Electron fallback. The detailed rationale and scope are in [host-test findings](research/host-test-findings.md). Consult the current Native Obsidian acceptance workflow for the post-correction matrix outcome; do not treat configured tests as passed.
 
-## Not performed
+Reports contain resolved app/installer versions, UI target, SHA, diagnostics, scoped accessibility findings and a successful-modal screenshot when the final accessibility test passes. Each native case uses a fresh copied synthetic vault with fresh settings.
 
-Actual Obsidian desktop execution, iOS execution and Android execution have **not been performed** in this environment. Native settings rendering, folder-reference navigation, reserved link characters, media codecs, screen readers and mobile keyboard interaction need the real-host checklist in `testing.md`.
+## Installer and cross-platform evidence
 
-No GitHub release has been published, no marketplace submission has been made, and no directory approval is implied. This is an implementation prepared for review and host acceptance, not proof of production or marketplace approval.
+The permanent quality matrix runs on Linux, Windows and macOS, including six disposable installer contracts and project-local test-build. The baseline implementation passed these in [run 36016626075](https://github.com/Luis85/describe/actions/runs/36016626075); the current candidate must also pass its attached checks. These runs verify tooling and filesystem safety, not that the actual Obsidian application ran on all three systems.
+
+## Not yet established by this evidence
+
+Actual Android and iOS device acceptance has not been performed. OS-level context-menu gestures, software keyboards, orientation, interruption, screen readers, zoom/theme combinations, all media codecs, and folder/unusual-character link navigation remain in the manual matrix. Scoped axe results are not full WCAG conformance and do not certify the rest of Obsidian.
+
+No public release, directory submission or approval has been performed. The candidate is prepared for code review and remaining platform acceptance; publication is a separate maintainer action.
