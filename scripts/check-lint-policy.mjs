@@ -19,3 +19,12 @@ for (const [filePath, max] of probes) {
   }
   console.log(`ESLint verified: ${filePath}: ${max} code lines; blanks and comment-only lines excluded.`);
 }
+
+// Migrating the Obsidian rule name must not accidentally permit desktop-only imports in runtime code.
+const nodeImport = "import { readFile } from 'node:fs/promises';\nexport { readFile };\n";
+for (const [filePath, blocked] of [['src/main.ts', true], ['tests/release/dependencies.test.ts', false]]) {
+  const [result] = await repositoryLinter.lintText(nodeImport, { filePath });
+  assert.equal(result.fatalErrorCount, 0);
+  assert.equal(result.messages.some(message => message.ruleId === 'obsidianmd/no-nodejs-modules'), blocked);
+}
+console.log('Node built-ins remain forbidden in plugin source and permitted in Node test runners.');
