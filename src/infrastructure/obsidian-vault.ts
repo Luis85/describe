@@ -1,8 +1,10 @@
 import { TFile, TFolder, type TAbstractFile, type Vault } from 'obsidian';
 import type { DescriptionVault } from '../application/create-description';
 import type { SourceItem } from '../domains/descriptions/model';
+import { canDescribePath, isProtectedPath } from '../domains/storage/eligibility';
 
-export function toSource(file: TAbstractFile): SourceItem {
+export function toSource(file: TAbstractFile, configDir = ''): SourceItem {
+  if (!canDescribePath(file.path, configDir)) throw new Error('Choose a visible file or a folder inside the vault, outside its configuration directory.');
   if (file instanceof TFile) {
     return { kind: 'file', path: file.path, name: file.basename, extension: file.extension.toLowerCase() };
   }
@@ -14,6 +16,7 @@ export class ObsidianDescriptionVault implements DescriptionVault {
   constructor(private readonly vault: Vault) {}
 
   sourceExists(source: SourceItem): boolean {
+    if (!canDescribePath(source.path, this.vault.configDir)) return false;
     const found = this.vault.getAbstractFileByPath(source.path);
     return source.kind === 'file' ? found instanceof TFile : found instanceof TFolder;
   }
@@ -23,8 +26,7 @@ export class ObsidianDescriptionVault implements DescriptionVault {
   }
 
   async ensureFolder(path: string): Promise<void> {
-    const config = this.vault.configDir;
-    if (path === config || path.startsWith(`${config}/`) || path.split('/').some(part => part.startsWith('.'))) {
+    if (isProtectedPath(path, this.vault.configDir)) {
       throw new Error('Description notes must be stored outside hidden and configuration folders.');
     }
     if (!path) return;

@@ -20,7 +20,14 @@ export class SettingsStore {
   }
 
   remember(key: string, path: string): Promise<void> {
-    return this.change(next => { next.extensionPaths[key] = folderPath(path); });
+    return this.change(next => {
+      const destination = folderPath(path);
+      // Another dialog or the settings page may have configured this type meanwhile.
+      if (Object.hasOwn(next.extensionPaths, key) && next.extensionPaths[key] !== destination) {
+        throw new Error('A newer destination for this file type was kept. Review it in settings.');
+      }
+      next.extensionPaths[key] = destination;
+    });
   }
 
   forget(key: string): Promise<void> {

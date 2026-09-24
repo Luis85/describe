@@ -87,17 +87,22 @@ class DropdownComponent {
 export class Setting {
   settingEl: HTMLElement;
   controlEl: HTMLElement;
+  nameEl: HTMLElement;
+  descEl: HTMLElement;
   constructor(parent: HTMLElement) {
-    this.settingEl = parent.createEl('div'); this.controlEl = this.settingEl.createEl('div');
+    this.settingEl = parent.createEl('div', { cls: 'setting-item' });
+    const info = this.settingEl.createEl('div', { cls: 'setting-item-info' });
+    this.nameEl = info.createEl('div', { cls: 'setting-item-name' });
+    this.descEl = info.createEl('div', { cls: 'setting-item-description' });
+    this.controlEl = this.settingEl.createEl('div', { cls: 'setting-item-control' });
   }
-  setName(value: string): this { this.settingEl.setAttribute('data-name', value); return this; }
-  setDesc(value: string): this { this.settingEl.setAttribute('data-description', value); return this; }
+  setName(value: string): this { this.nameEl.setText(value); this.settingEl.setAttribute('data-name', value); return this; }
+  setDesc(value: string): this { this.descEl.setText(value); this.settingEl.setAttribute('data-description', value); return this; }
   setHeading(): this { return this; }
   setClass(value: string): this { this.settingEl.addClass(value); return this; }
   addText(callback: (component: TextComponent) => void): this { callback(new TextComponent(this.controlEl)); return this; }
   addTextArea(callback: (component: TextAreaComponent) => void): this { callback(new TextAreaComponent(this.controlEl)); return this; }
   addButton(callback: (component: ButtonComponent) => void): this { callback(new ButtonComponent(this.controlEl)); return this; }
-  addExtraButton(callback: (component: ButtonComponent) => void): this { callback(new ButtonComponent(this.controlEl)); return this; }
   addColorPicker(callback: (component: ColorComponent) => void): this { callback(new ColorComponent(this.controlEl)); return this; }
   addDropdown(callback: (component: DropdownComponent) => void): this { callback(new DropdownComponent(this.controlEl)); return this; }
 }

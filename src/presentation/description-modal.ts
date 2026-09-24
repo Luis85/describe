@@ -1,10 +1,12 @@
-import { Modal, Notice, Setting, type App, type TextComponent } from 'obsidian';
+import { Modal, Notice, Setting, type App, type ButtonComponent } from 'obsidian';
 import type { CreateRequest } from '../application/create-description';
 import { describeItem } from '../domains/descriptions/metadata';
+import { DescriptionValidationError } from '../domains/descriptions/validation-error';
 import { extensionKey, extensionLabel, type DescriptionInput, type SourceItem } from '../domains/descriptions/model';
 import { destinationFolder, folderPath, joinPath, noteBasename, type StorageChoice } from '../domains/storage/paths';
 import type { DescribeSettings } from '../domains/storage/settings';
 import { textField } from './fields';
+import { addMetadataFields } from './metadata-fields';
 
 export interface DescriptionModalOptions {
   source: () => SourceItem;
@@ -22,7 +24,11 @@ export class DescriptionModal extends Modal {
   private disposed = false;
   private formFields?: HTMLFieldSetElement;
   private errorEl?: HTMLElement;
+  private statusEl?: HTMLElement;
+  private sourceEl?: HTMLElement;
   private previewEl?: HTMLElement;
+  private summaryEl?: HTMLElement;
+  private saveButton?: ButtonComponent;
   private subfolderRow?: Setting;
   private configuredRow?: Setting;
 
@@ -43,57 +49,42 @@ export class DescriptionModal extends Modal {
   override onOpen(): void {
     this.setTitle('Describe!');
     this.contentEl.addClass('describe-modal');
-    this.contentEl.createEl('p', { text: this.options.source().path, cls: 'describe-source' });
+    this.sourceEl = this.contentEl.createEl('p', { text: this.options.source().path, cls: 'describe-source' });
     const form = this.contentEl.createEl('form');
+    form.noValidate = true; // One domain validator and one accessible error presentation.
     form.addEventListener('submit', event => { event.preventDefault(); void this.submit(); });
-    this.formFields = form.createEl('fieldset', { cls: 'describe-fields' });
-    textField(this.formFields, 'Name', 'Names the description note, not the original item.', this.draft.name,
+    form.addEventListener('input', () => {
+      this.errorEl?.setText('');
+      form.querySelectorAll('[aria-invalid="true"]').forEach(element => element.removeAttribute('aria-invalid'));
+    });
+    this.formFields = form.createEl('fieldset', { cls: 'describe-fields', attr: { 'aria-label': 'Description details' } });
+    textField(this.formFields, 'Name', 'Required. Names the new description note, not the original item.', this.draft.name,
       value => { this.draft.name = value; this.updatePreview(); });
-    textField(this.formFields, 'Description', 'Markdown is supported. The full text stays in the note.', '',
-      value => { this.draft.description = value; }, true);
-    this.addMetadata(this.formFields);
+    textField(this.formFields, 'Description', 'Required. Markdown is supported; the full text stays in the note.', '',
+      value => { this.draft.description = value; this.updateSummary(); }, true);
+    this.summaryEl = this.formFields.createEl('p', { cls: 'describe-summary' });
+    addMetadataFields(this.formFields, this.draft);
     this.addStorage(this.formFields);
-    this.previewEl = this.formFields.createEl('p', { cls: 'describe-destination', attr: { 'aria-live': 'polite' } });
-    this.errorEl = form.createEl('p', { cls: 'describe-error', attr: { role: 'alert' } });
+    this.previewEl = this.formFields.createEl('p', { cls: 'describe-destination', attr: { 'aria-live': 'polite', 'aria-atomic': 'true' } });
+    this.errorEl = form.createEl('p', { cls: 'describe-error', attr: { role: 'alert', tabindex: '-1' } });
+    this.statusEl = form.createEl('p', { cls: 'describe-status', attr: { role: 'status' } });
     new Setting(this.formFields).setClass('describe-actions')
-      .addButton(button => button.setButtonText('Cancel').onClick(() => this.close()))
       .addButton(button => {
+        button.setButtonText('Cancel').onClick(() => this.close());
+        button.buttonEl.type = 'button';
+      })
+      .addButton(button => {
+        this.saveButton = button;
         button.setButtonText('Save description').setCta();
         button.buttonEl.type = 'submit';
       });
-    this.scope.register(['Mod'], 'Enter', () => { void this.submit(); return false; });
+    this.scope.register(['Mod'], 'Enter', event => {
+      if (event.isComposing) return true;
+      void this.submit(); return false;
+    });
     this.updatePreview();
+    this.updateSummary();
     form.querySelector<HTMLInputElement>('input')?.focus();
-  }
-
-  private addMetadata(parent: HTMLElement): void {
-    const details = parent.createEl('details', { cls: 'describe-metadata' });
-    details.createEl('summary', { text: 'Tags, category, color and aliases' });
-    textField(details, 'Tags', 'Separate with spaces or commas. Nested tags such as project/home work too.', '',
-      value => { this.draft.tags = value; });
-    textField(details, 'Category', 'An optional category for this item.', '', value => { this.draft.category = value; });
-    let colorText: TextComponent | undefined;
-    let updatePicker: ((value: string) => void) | undefined;
-    new Setting(details).setName('Color').setDesc('Optional hex color. Clear it to leave the item uncolored.')
-      .addColorPicker(picker => {
-        updatePicker = value => { picker.setValue(value); };
-        picker.setValue('#3388cc').onChange(value => {
-          this.draft.color = value; colorText?.setValue(value);
-        });
-      })
-      .addText(text => {
-        colorText = text;
-        text.setPlaceholder('Hex color').onChange(value => {
-          this.draft.color = value;
-          if (/^#[\da-f]{6}$/iu.test(value.trim())) updatePicker?.(value.trim());
-        });
-        text.inputEl.setAttribute('aria-label', 'Color hex value');
-      })
-      .addExtraButton(button => button.setIcon('x').setTooltip('Clear color').onClick(() => {
-        this.draft.color = ''; colorText?.setValue('');
-      }));
-    textField(details, 'Aliases', 'One alternative name per line. Commas are kept as part of an alias.', '',
-      value => { this.draft.aliases = value; }, true);
   }
 
   private addStorage(parent: HTMLElement): void {
@@ -118,21 +109,46 @@ export class DescriptionModal extends Modal {
       });
       dropdown.selectEl.setAttribute('aria-label', 'Save this description in');
     });
-    this.configuredRow = new Setting(parent).setName('Configured destination')
-      .setDesc(this.storage.configuredFolder || 'Vault root');
+    this.configuredRow = new Setting(parent).setName('Configured destination').setDesc(this.storage.configuredFolder || 'Vault root');
     this.subfolderRow = textField(parent, 'Descriptions subfolder', 'Relative to the file’s folder, or inside the selected folder.',
       this.storage.subfolder, value => { this.storage.subfolder = value; this.updatePreview(); });
+  }
+
+  private updateSummary(): void {
+    const count = Array.from(this.draft.description.replace(/\r\n?/gu, '\n')).length;
+    this.summaryEl?.setText(`${count} characters. The summary uses the first ${Math.min(count, 80)}; the full description is preserved.`);
   }
 
   private updatePreview(): void {
     this.subfolderRow?.settingEl.toggleClass('describe-hidden', this.storage.mode !== 'subfolder');
     this.configuredRow?.settingEl.toggleClass('describe-hidden', this.storage.mode !== 'configured' || this.unknown);
     try {
-      const path = joinPath(destinationFolder(this.options.source(), this.storage), `${noteBasename(this.draft.name)}.md`);
+      const source = this.options.source();
+      this.sourceEl?.setText(source.path);
+      const path = joinPath(destinationFolder(source, this.storage), `${noteBasename(this.draft.name)}.md`);
       this.previewEl?.setText(`Destination: ${path}. A number is added if that note already exists.`);
     } catch (error) {
       this.previewEl?.setText(error instanceof Error ? error.message : 'Choose a valid destination.');
     }
+  }
+
+  private setBusy(busy: boolean): void {
+    this.busy = busy;
+    if (this.formFields) this.formFields.disabled = busy;
+    this.contentEl.setAttribute('aria-busy', String(busy));
+    this.statusEl?.setText(busy ? 'Saving description…' : '');
+    this.saveButton?.setButtonText(busy ? 'Saving…' : 'Save description');
+  }
+
+  private reportError(error: unknown): void {
+    this.errorEl?.setText(error instanceof Error ? error.message : 'Could not save. Your text is still here; please try again.');
+    if (error instanceof DescriptionValidationError) {
+      const field = this.contentEl.querySelector<HTMLInputElement | HTMLTextAreaElement>(`[data-describe-field="${error.field}"]`);
+      const details = field?.closest('details');
+      if (details) details.open = true;
+      field?.setAttribute('aria-invalid', 'true');
+      field?.focus();
+    } else this.errorEl?.focus();
   }
 
   private async submit(): Promise<void> {
@@ -144,22 +160,20 @@ export class DescriptionModal extends Modal {
       }
       if (this.unknown) folderPath(this.storage.configuredFolder);
       destinationFolder(this.options.source(), this.storage);
-      this.busy = true;
-      if (this.formFields) this.formFields.disabled = true;
-      this.errorEl?.setText('Saving…');
+      this.errorEl?.setText('');
+      this.setBusy(true);
       const result = await this.options.save({
         source: this.options.source, description: this.draft, storage: this.storage,
       }, this.unknown ? this.storage.configuredFolder : undefined);
-      if (!this.disposed) {
-        new Notice(`Description saved: ${result.path}`);
-        for (const warning of result.warnings) new Notice(warning, 10_000);
-      }
-      this.busy = false;
+      if (this.disposed) return;
+      new Notice(`Description saved: ${result.path}`);
+      for (const warning of result.warnings) new Notice(warning, 10_000);
+      this.setBusy(false);
       this.close();
     } catch (error) {
-      this.busy = false;
-      if (this.formFields) this.formFields.disabled = false;
-      this.errorEl?.setText(error instanceof Error ? error.message : 'Could not save. Your text is still here; please try again.');
+      if (this.disposed) return;
+      this.setBusy(false);
+      this.reportError(error);
     }
   }
 

@@ -8,7 +8,7 @@ const output = path.resolve('reports/native');
 
 export const config: WebdriverIO.Config = {
   runner: 'local', framework: 'mocha', injectGlobals: false,
-  specs: ['./tests/e2e/**/*.e2e.ts'], maxInstances: 1,
+  specs: [path.resolve('tests/e2e/**/*.e2e.ts')], maxInstances: 1,
   capabilities: [{
     browserName: 'obsidian',
     'wdio:obsidianOptions': {
