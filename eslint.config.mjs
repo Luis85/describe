@@ -18,9 +18,10 @@ export default defineConfig([
       'obsidianmd/no-tfile-tfolder-cast': 'off',
       'obsidianmd/no-global-this': 'off',
       'obsidianmd/no-unsupported-api': 'off',
-      // jsdom has one document; it is not an Obsidian popout window.
+      // Tests execute in Node/jsdom; the production runtime still forbids Node imports.
+      'import/no-nodejs-modules': 'off',
       'obsidianmd/prefer-active-doc': 'off',
-      // Both default and custom configuration paths are deliberate negative-test fixtures.
+      // Default and custom configuration paths are deliberate negative-test fixtures.
       'obsidianmd/hardcoded-config-path': 'off',
       '@typescript-eslint/no-empty-function': 'off',
     },

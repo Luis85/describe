@@ -1,7 +1,7 @@
 import { FuzzySuggestModal, TFile, TFolder, type App, type TAbstractFile } from 'obsidian';
 
 export class ItemPicker extends FuzzySuggestModal<TAbstractFile> {
-  constructor(app: App, private readonly choose: (file: TAbstractFile) => void) {
+  constructor(app: App, private readonly choose: (file: TAbstractFile) => void, private readonly closed: () => void = () => undefined) {
     super(app);
     this.setPlaceholder('Choose a file or folder to describe');
   }
@@ -13,4 +13,5 @@ export class ItemPicker extends FuzzySuggestModal<TAbstractFile> {
 
   override getItemText(file: TAbstractFile): string { return file.path; }
   override onChooseItem(file: TAbstractFile): void { this.choose(file); }
+  override onClose(): void { super.onClose(); this.closed(); }
 }

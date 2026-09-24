@@ -11,7 +11,7 @@ export default class DescribePlugin extends Plugin {
   private store!: SettingsStore;
   private creator!: CreateDescription;
   private settingsTab!: DescribeSettingsTab;
-  private readonly modals = new Set<DescriptionModal>();
+  private readonly modals = new Set<DescriptionModal | ItemPicker>();
   private active = false;
 
   override async onload(): Promise<void> {
@@ -35,19 +35,26 @@ export default class DescribePlugin extends Plugin {
         return true;
       },
     });
-    this.addCommand({
-      id: 'choose-item', name: 'Choose a file or folder',
-      callback: () => new ItemPicker(this.app, file => this.openDescription(file)).open(),
-    });
+    this.addCommand({ id: 'choose-item', name: 'Choose a file or folder', callback: () => this.openPicker() });
+  }
+
+  private openPicker(): void {
+    if (!this.active) return;
+    const picker = new ItemPicker(this.app, file => this.openDescription(file), () => { this.modals.delete(picker); });
+    this.modals.add(picker);
+    picker.open();
   }
 
   private openDescription(file: TAbstractFile): void {
     if (!this.active) return;
-    const source = () => {
-      if (this.app.vault.getAbstractFileByPath(file.path) !== file) throw new Error('The selected item no longer exists.');
-      return toSource(file);
-    };
     try {
+      const type = extensionKey(toSource(file));
+      const source = () => {
+        if (this.app.vault.getAbstractFileByPath(file.path) !== file) throw new Error('The selected item no longer exists.');
+        const item = toSource(file);
+        if (extensionKey(item) !== type) throw new Error('The source file type changed. Copy your draft, then reopen this dialog.');
+        return item;
+      };
       const modal = new DescriptionModal(this.app, {
         source, settings: this.store.value,
         save: (request, rememberFolder) => this.saveDescription(request, rememberFolder),
@@ -81,7 +88,10 @@ export default class DescribePlugin extends Plugin {
 
   override onunload(): void {
     this.active = false;
-    for (const modal of this.modals) modal.dispose();
+    for (const modal of this.modals) {
+      if (modal instanceof DescriptionModal) modal.dispose();
+      else modal.close();
+    }
     this.modals.clear();
   }
 }

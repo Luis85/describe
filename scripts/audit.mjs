@@ -1,5 +1,4 @@
 import { run } from './process.mjs';
 
-// Development dependencies are reviewed too; high or critical findings block CI.
-// Moderate findings remain visible in the report and require maintainer triage.
-run('npm', ['audit', '--audit-level=high']);
+// Audit development tooling as well as runtime dependencies; do not hide moderate findings.
+run('npm', ['audit', '--audit-level=moderate']);
