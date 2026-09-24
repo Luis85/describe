@@ -42,3 +42,31 @@ export async function settings(): Promise<{ extensionPaths: Record<string, strin
     return JSON.parse(await app.vault.adapter.read(path)) as { extensionPaths: Record<string, string>; subfolder?: string };
   });
 }
+
+export async function openDescribeSettings(): Promise<{ mainWindow: string; settingsWindow: string }> {
+  const mainWindow = await browser.getWindowHandle();
+  await browser.executeObsidianCommand('app:open-settings');
+  let settingsWindow = mainWindow;
+  // Desktop can open a separate host window; mobile emulation uses an in-window sheet.
+  await browser.waitUntil(async () => {
+    for (const handle of await browser.getWindowHandles()) {
+      await browser.switchToWindow(handle);
+      if (await browser.$('.vertical-tab-nav-item=Describe').isExisting()) {
+        settingsWindow = handle;
+        return true;
+      }
+    }
+    return false;
+  }, { timeoutMsg: 'The native Describe settings navigation did not appear in any host window.' });
+  await browser.$('.vertical-tab-nav-item=Describe').click();
+  return { mainWindow, settingsWindow };
+}
+
+export async function closeSettings(windows: { mainWindow: string; settingsWindow: string }): Promise<void> {
+  await browser.switchToWindow(windows.settingsWindow);
+  if (windows.settingsWindow === windows.mainWindow) {
+    await browser.keys('Escape');
+    await expect(browser.$('.vertical-tab-nav-item=Describe')).not.toExist();
+  } else await browser.closeWindow();
+  await browser.switchToWindow(windows.mainWindow);
+}

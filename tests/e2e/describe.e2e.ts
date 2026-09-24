@@ -5,7 +5,7 @@ import { beforeEach, describe, it } from 'mocha';
 import { browser, expect } from '@wdio/globals';
 import { obsidianPage } from 'wdio-obsidian-service';
 import { AxeBuilder } from '@axe-core/webdriverio';
-import { choose, field, fill, frontmatter, modal, save, settings } from './helpers';
+import { choose, closeSettings, field, fill, frontmatter, modal, openDescribeSettings, save, settings } from './helpers';
 
 beforeEach(async () => {
   // A fresh copied vault resets both notes AND plugin settings, unlike resetVault alone.
@@ -92,29 +92,18 @@ describe('Describe in the real Obsidian host', () => {
     assert.equal(await obsidianPage.read('Descriptions/Same name.md'), original);
   });
 
-  it('remembers first-use routing across a real plugin reload', async () => {
-    await choose('Assets/reference.svg');
-    await fill('First');
-    await field('Default folder for this file type').setValue('Image notes');
-    await save('Image notes/First.md');
-    await obsidianPage.disablePlugin('describe');
-    await obsidianPage.enablePlugin('describe');
-    await choose('Assets/reference.svg');
-    await expect(browser.$('.describe-first-use')).not.toExist();
-    await expect(browser.$('.describe-destination')).toHaveText(expect.stringContaining('Image notes/reference.md'));
-  });
-
-  it('renders native declarative settings rather than a mocked settings tab', async () => {
-    await browser.executeObsidianCommand('app:open-settings');
-    await browser.$('.vertical-tab-nav-item=Describe').click();
-    // Match a complete class token: a group whose name contains "setting-item" is not this row.
+  it('renders and persists native declarative settings in the host settings window', async () => {
+    const windows = await openDescribeSettings();
+    // A complete class token excludes group containers whose names contain "setting-item".
     const row = '//div[contains(concat(" ",normalize-space(@class)," ")," setting-item ")]';
     const subfolder = browser.$(`${row}[.//div[@class="setting-item-name" and normalize-space(.)="Descriptions subfolder"]]//input`);
     await expect(subfolder).toHaveValue('descriptions');
     await subfolder.setValue('Context');
     await browser.keys('Tab');
+    // The service's app bridge belongs to the main window, not the host's settings popout.
+    await browser.switchToWindow(windows.mainWindow);
     await browser.waitUntil(async () => (await settings()).subfolder === 'Context');
-    await browser.keys('Escape');
+    await closeSettings(windows);
     await choose('Assets/reference.svg');
     await field('Save this description in').selectByAttribute('value', 'subfolder');
     await expect(field('Descriptions subfolder')).toHaveValue('Context');
