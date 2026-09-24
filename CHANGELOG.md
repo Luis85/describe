@@ -18,9 +18,18 @@
 - Prevent stale dialogs overwriting newer routes, delayed initialization after unload, queued saves after shutdown and disposed-modal updates.
 - Apply hidden/configuration target eligibility consistently across entry points and the Vault adapter.
 - Expand deterministic regression coverage and raise coverage floors.
-- Add strict, isolated native Obsidian acceptance using WebdriverIO, built assets, fresh copied vaults, minimum/latest app targets and accurately labeled desktop mobile emulation.
-- Add scoped accessibility/layout checks, actual version records, failure screenshots and DOM diagnostics.
-- Update native development dependencies and document compatibility overrides rather than suppress vulnerability findings.
-- Add comprehensive primary-source testing research, executed-host findings and revised architecture, PRD, testing and release guidance.
+- Add strict native Obsidian acceptance using built assets, copied vaults, minimum/latest app targets and accurately labeled desktop mobile emulation.
+- Add scoped accessibility/layout checks, version records, screenshots and DOM diagnostics.
+- Add primary-source testing research, executed-host findings and revised architecture, PRD, testing and release guidance.
 
-Publication, directory approval and remaining actual-device/manual acceptance are separate release steps.
+### Unified test runner
+
+- Run both fast tests and actual-Obsidian acceptance through Vitest, retaining standalone WebdriverIO for application interaction.
+- Remove Mocha, its types and adapter, the WDIO CLI/local runner, runner reporters and the obsolete Mocha compatibility hold/serializer override.
+- Preserve all eight native product scenarios and add real-session body/readiness failure-cleanup checks.
+- Own session/profile/vault lifecycle explicitly, including partial startup, cancellation and idempotent teardown; add deterministic failure regressions.
+- Add JSON/JUnit and per-case environment, screenshot, DOM, accessibility and cleanup evidence.
+- Reject missing, duplicate, skipped or failed required acceptance cases through a tested report gate.
+- Verify absence of the retired runner in the installed/locked graph without weakening audits, strict typechecking, lint or release approval.
+
+Publication, directory approval and remaining actual-device/manual acceptance are separate release steps. This test-runner migration does not change the plugin runtime or note schema.
