@@ -18,7 +18,6 @@
     "lint": "node scripts/run.mjs lint",
     "lint:oxlint": "node scripts/run.mjs oxlint",
     "analyze": "node scripts/run.mjs fallow",
-    "check:loc": "node scripts/check-loc.mjs",
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:release": "node scripts/check-release.mjs",
     "check": "node scripts/run.mjs check",

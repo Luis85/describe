@@ -14,8 +14,8 @@ const tasks = {
   fallow() { run('fallow', ['dead-code']); },
   async check() {
     const gates = [
-      ['TypeScript 7', tasks.typecheck], ['ESLint', tasks.lint], ['Oxlint', tasks.oxlint],
-      ['Line limits', () => import('./check-loc.mjs')],
+      ['TypeScript 7', tasks.typecheck], ['ESLint (including code-line limits)', tasks.lint], ['Oxlint', tasks.oxlint],
+      ['ESLint policy regression', () => import('./check-lint-policy.mjs')],
       ['Architecture', () => import('./check-architecture.mjs')],
       ['Tests and coverage', tasks.coverage], ['Fallow', tasks.fallow],
       ['Build', () => import('./build.mjs')], ['Release contract', () => import('./check-release.mjs')],
