@@ -1,31 +1,35 @@
-name: Initial dependency verification
+name: Quality and package verification
 on:
   push:
-    branches: [feat/describe-plugin]
+    branches: [main, feat/describe-plugin]
+  pull_request:
 permissions:
-  contents: write
+  contents: read
 concurrency:
-  group: describe-bootstrap
+  group: describe-quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  initialize:
+  verify:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
-      - run: node scripts/bootstrap-lock.mjs
+          node-version-file: .nvmrc
+          cache: npm
       - run: npm ci
       - run: npm run check
       - run: npm run test-build
+      - run: node scripts/audit.mjs
+        if: always()
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: initial-verification
+          name: describe-verification
           path: |
-            package-lock.json
             coverage/
             dist/
-          if-no-files-found: ignore
+          if-no-files-found: error

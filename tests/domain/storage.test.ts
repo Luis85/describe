@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { describe, expect, it } from 'vitest';
 import { destinationFolder, folderPath, noteBasename, pathError } from '../../src/domains/storage/paths';
 import { defaultSettings, loadSettings } from '../../src/domains/storage/settings';
@@ -21,18 +22,20 @@ describe('destination paths', () => {
     expect(folderPath('/')).toBe('');
     expect(folderPath('  Notes\\Images/  ')).toBe('Notes/Images');
   });
-  it.each(['../notes', 'A/../B', '/tmp/notes', 'C:\\notes', 'A//B', '.obsidian', 'A/.hidden', 'A/./B', 'A/B.', 'A /B', 'CON', 'A:x', 'A|B', 'A?B'])
-    ('rejects unsafe destination %s', value => {
-      expect(() => folderPath(value)).toThrow();
-      expect(pathError(value)).toBeTypeOf('string');
-    });
+  it.each([
+    '../notes', 'A/../B', '/tmp/notes', 'C:\\notes', 'A//B', '.obsidian', 'A/.hidden',
+    'A/./B', 'A/B.', 'A /B', 'CON', 'A:x', 'A|B', 'A?B', 'A\u0001B', 'A\u007fB',
+  ])('rejects unsafe destination %s', value => {
+    expect(() => folderPath(value)).toThrow();
+    expect(pathError(value)).toBeTypeOf('string');
+  });
   it('rejects an empty local subfolder', () => {
     expect(() => folderPath('', false)).toThrow('non-empty');
     expect(pathError('Notes')).toBeUndefined();
   });
   it.each([
     ['A/B: C?', 'A B C'], ['CON', '_CON'], ['..', 'Description'], ['folder [draft]', 'folder draft'],
-    [' hello   world. ', 'hello world'], ['normal', 'normal'],
+    [' hello   world. ', 'hello world'], ['normal', 'normal'], ['A\u0001B\u007fC', 'A B C'],
   ])('creates portable filenames for %s', (name, expected) => {
     expect(noteBasename(name)).toBe(expected);
   });

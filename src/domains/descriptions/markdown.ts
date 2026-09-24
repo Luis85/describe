@@ -8,7 +8,7 @@ const MEDIA_EXTENSIONS = new Set([
 
 export function sourceWikilink(source: SourceItem): string {
   // Reserved wikilink delimiters must not turn a filename into a heading or alias.
-  const target = source.path.replace(/[%\[\]#^|\r\n]/gu, char =>
+  const target = source.path.replace(/[%[\]#^|\r\n]/gu, char =>
     `%${char.charCodeAt(0).toString(16).toUpperCase().padStart(2, '0')}`);
   return `[[${target}${source.kind === 'folder' ? '/' : ''}]]`;
 }

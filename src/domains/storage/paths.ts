@@ -1,4 +1,5 @@
 import type { SourceItem } from '../descriptions/model';
+import { isControlCharacter } from '../text';
 
 export type StorageMode = 'configured' | 'same-folder' | 'subfolder';
 export interface StorageChoice {
@@ -16,7 +17,7 @@ export function folderPath(value: string, allowRoot = true): string {
   if (raw.startsWith('/') || /^[a-z]:/iu.test(raw)) throw new Error('Use a vault-relative folder path.');
   const parts = raw.replace(/\/+$/gu, '').split('/');
   for (const part of parts) {
-    if (!part || part.startsWith('.') || /[<>:"|?*\u0000-\u001f\u007f]/u.test(part)
+    if (!part || part.startsWith('.') || /[<>:"|?*]/u.test(part) || Array.from(part).some(isControlCharacter)
       || /[. ]$/u.test(part) || part !== part.trim()
       || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/iu.test(part)) {
       throw new Error('Use visible folder names without reserved characters, . or .. segments.');
@@ -43,7 +44,8 @@ export function destinationFolder(source: SourceItem, choice: StorageChoice): st
 }
 
 export function noteBasename(name: string): string {
-  const cleaned = name.replace(/[\\/:*?"<>|#^\[\]\u0000-\u001f\u007f]/gu, ' ')
+  const printable = Array.from(name).map(character => isControlCharacter(character) ? ' ' : character).join('');
+  const cleaned = printable.replace(/[\\/:*?"<>|#^[\]]/gu, ' ')
     .replace(/\s+/gu, ' ').replace(/^[. ]+|[. ]+$/gu, '');
   // 60 Unicode code points leave room for a suffix within a 255-byte filename.
   const shortened = Array.from(cleaned).slice(0, 60).join('').replace(/[. ]+$/gu, '') || 'Description';

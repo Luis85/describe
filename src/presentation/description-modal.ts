@@ -17,6 +17,7 @@ export class DescriptionModal extends Modal {
   private readonly draft: DescriptionInput;
   private readonly storage: StorageChoice;
   private readonly unknown: boolean;
+  private readonly sourceType: string;
   private busy = false;
   private disposed = false;
   private formFields?: HTMLFieldSetElement;
@@ -29,6 +30,7 @@ export class DescriptionModal extends Modal {
     super(app);
     const source = options.source();
     const key = extensionKey(source);
+    this.sourceType = key;
     this.unknown = !Object.hasOwn(options.settings.extensionPaths, key);
     this.draft = { name: source.name, description: '', tags: '', category: '', color: '', aliases: '' };
     this.storage = {
@@ -71,13 +73,20 @@ export class DescriptionModal extends Modal {
       value => { this.draft.tags = value; });
     textField(details, 'Category', 'An optional category for this item.', '', value => { this.draft.category = value; });
     let colorText: TextComponent | undefined;
+    let updatePicker: ((value: string) => void) | undefined;
     new Setting(details).setName('Color').setDesc('Optional hex color. Clear it to leave the item uncolored.')
-      .addColorPicker(picker => picker.setValue('#3388cc').onChange(value => {
-        this.draft.color = value; colorText?.setValue(value);
-      }))
+      .addColorPicker(picker => {
+        updatePicker = value => { picker.setValue(value); };
+        picker.setValue('#3388cc').onChange(value => {
+          this.draft.color = value; colorText?.setValue(value);
+        });
+      })
       .addText(text => {
         colorText = text;
-        text.setPlaceholder('#3388cc').onChange(value => { this.draft.color = value; });
+        text.setPlaceholder('Hex color').onChange(value => {
+          this.draft.color = value;
+          if (/^#[\da-f]{6}$/iu.test(value.trim())) updatePicker?.(value.trim());
+        });
         text.inputEl.setAttribute('aria-label', 'Color hex value');
       })
       .addExtraButton(button => button.setIcon('x').setTooltip('Clear color').onClick(() => {
@@ -130,6 +139,9 @@ export class DescriptionModal extends Modal {
     if (this.busy || this.disposed) return;
     try {
       describeItem(this.draft);
+      if (extensionKey(this.options.source()) !== this.sourceType) {
+        throw new Error('The source file type changed. Copy your draft, then reopen this dialog to choose its destination.');
+      }
       if (this.unknown) folderPath(this.storage.configuredFolder);
       destinationFolder(this.options.source(), this.storage);
       this.busy = true;
@@ -152,7 +164,7 @@ export class DescriptionModal extends Modal {
   }
 
   override close(): void {
-    if (!this.busy) super.close();
+    if (!this.busy && !this.disposed) super.close();
   }
 
   dispose(): void {
@@ -161,6 +173,7 @@ export class DescriptionModal extends Modal {
   }
 
   override onClose(): void {
+    if (this.disposed) return;
     this.disposed = true;
     this.contentEl.empty();
     this.options.closed();

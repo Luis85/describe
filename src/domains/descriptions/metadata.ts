@@ -1,3 +1,4 @@
+import { isControlCharacter } from '../text';
 import type { DescriptionInput, ItemDescription } from './model';
 
 function unique(values: string[]): string[] {
@@ -12,7 +13,7 @@ function unique(values: string[]): string[] {
 
 function singleLine(value: string, label: string, max: number): string {
   const result = value.trim();
-  if (/[\r\n\u0000-\u001f\u007f]/u.test(result) || result.length > max) {
+  if (Array.from(result).some(isControlCharacter) || result.length > max) {
     throw new Error(`${label} must be one line of at most ${max} characters.`);
   }
   return result;
