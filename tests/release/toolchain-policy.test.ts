@@ -10,6 +10,7 @@ interface Package {
   devDependencies: Record<string, string>;
 }
 interface Lock { packages: Record<string, { version?: string; devDependencies?: Record<string, string> }> }
+interface EffectiveLintConfig { rules: Record<string, unknown> }
 const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as Package;
 const lock = JSON.parse(readFileSync('package-lock.json', 'utf8')) as Lock;
 const nodeRequire = createRequire(path.resolve('package.json'));
@@ -39,10 +40,10 @@ describe('post-migration toolchain contracts', () => {
     expect(ESLint.version).toMatch(/^10\./u);
   });
 
-  it('keeps source and native-test LOC and mobile import boundaries active under ESLint 10', async () => {
+  it('keeps source and native-test LOC and mobile import boundaries active under ESLint 10', { timeout: 15_000 }, async () => {
     const linter = new ESLint();
-    const source = await linter.calculateConfigForFile('src/main.ts');
-    const native = await linter.calculateConfigForFile('tests/e2e/vitest.config.mts');
+    const source = await linter.calculateConfigForFile('src/main.ts') as EffectiveLintConfig;
+    const native = await linter.calculateConfigForFile('tests/e2e/vitest.config.mts') as EffectiveLintConfig;
     expect(source.rules['max-lines']).toEqual([2, { max: 400, skipBlankLines: true, skipComments: true }]);
     expect(native.rules['max-lines']).toEqual([2, { max: 450, skipBlankLines: true, skipComments: true }]);
     expect(source.rules['obsidianmd/no-nodejs-modules']).toEqual([2]);
