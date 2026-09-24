@@ -42,7 +42,8 @@ describe('plugin shutdown and eligibility', () => {
     state.commands[0]?.checkCallback?.(false); saveLastModal();
     plugin.onunload(); finish?.();
     await vi.waitFor(() => expect(host.contents.size).toBe(1));
-    await new Promise(resolve => setTimeout(resolve, 0));
+    // Flush the next task after the controlled promise chain, not a guessed I/O delay.
+    await new Promise(resolve => window.setTimeout(resolve, 0));
     expect(host.vault.create).toHaveBeenCalledTimes(1);
     expect(state.data).toBeNull(); expect(host.openFile).not.toHaveBeenCalled();
     expect(Notice.messages).toEqual([]);
