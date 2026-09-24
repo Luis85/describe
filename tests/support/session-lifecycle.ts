@@ -70,17 +70,18 @@ export class SessionLifecycle<T> {
   }
 }
 
+type Outcome<T> = { ok: true; value: T } | { ok: false; error: unknown };
+
 /** Preserve a test/setup failure even when teardown independently fails. */
 export async function withSession<T, R>(session: SessionLifecycle<T>, use: (client: T) => Promise<R>): Promise<R> {
-  let failed = false;
-  let failure: unknown;
-  try { return await use(await session.start()); }
-  catch (error) { failed = true; failure = error; throw error; }
-  finally {
-    try { await session.close(); }
-    catch (error) {
-      if (failed) throw new AggregateError([failure, error], 'Native operation and teardown failed.');
-      throw error;
-    }
+  let result: Outcome<R>;
+  try { result = { ok: true, value: await use(await session.start()) }; }
+  catch (error) { result = { ok: false, error }; }
+  try { await session.close(); }
+  catch (error) {
+    if (!result.ok) throw new AggregateError([result.error, error], 'Native operation and teardown failed.');
+    throw error;
   }
+  if (!result.ok) throw result.error;
+  return result.value;
 }

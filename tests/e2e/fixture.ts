@@ -12,7 +12,7 @@ interface NativeContext {
 }
 
 export const test = base.extend<{ native: NativeContext }>({
-  native: [async ({ task, signal }, use) => {
+  native: async ({ task, signal }, use) => {
     const directory = await caseDirectory(task.id, task.name);
     const session = createNativeSession();
     let abortCleanup: Promise<void> | undefined;
@@ -25,16 +25,17 @@ export const test = base.extend<{ native: NativeContext }>({
     if (signal.aborted) cancel();
     try {
       await withSession(session, async browser => {
+        const page = browser.getObsidianPage();
         await writeEvidence(directory, 'environment', {
           requestedVersion, appVersion: browser.getObsidianVersion(),
           installerVersion: browser.getObsidianInstallerVersion(),
           platform: process.platform, runner: 'vitest',
           ui: mobileEmulation ? 'desktop mobile emulation; NOT a device test' : 'desktop',
           commit: process.env.SOURCE_COMMIT ?? process.env.GITHUB_SHA ?? 'local',
-          vault: browser.getVaultPath(),
+          vault: page.getVaultPath(),
         });
         try {
-          await use({ browser, page: browser.getObsidianPage(), ui: createDescriptionPage(browser), directory });
+          await use({ browser, page, ui: createDescriptionPage(browser), directory });
         } finally {
           if (!signal.aborted) await captureBrowser(browser, directory);
         }
@@ -47,5 +48,5 @@ export const test = base.extend<{ native: NativeContext }>({
     } finally {
       signal.removeEventListener('abort', cancel);
     }
-  }, { timeout: 180_000 }],
+  },
 });
