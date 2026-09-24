@@ -4,11 +4,19 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: true
+      baseline:
+        type: string
+        default: '1.13.7'
 permissions:
   contents: read
 concurrency:
-  group: describe-native-${{ github.ref }}
-  cancel-in-progress: true
+  group: describe-native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.workflow != 'Release' }}
 jobs:
   native:
     name: Obsidian ${{ matrix.version }} / ${{ matrix.ui }}
@@ -18,29 +26,31 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - version: '1.13.7'
+          - version: ${{ inputs.baseline || '1.13.7' }}
             ui: desktop
           - version: latest
             ui: desktop
-          - version: '1.13.7'
+          - version: ${{ inputs.baseline || '1.13.7' }}
             ui: mobile-emulation
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - name: Install virtual display dependencies
-        run: sudo apt-get update -q && sudo apt-get install -y xvfb herbstluftwm libnss3 libasound2t64 libgbm1
+        run: sudo apt-get update -q && sudo apt-get install -y xvfb herbstluftwm x11-xserver-utils libnss3 libasound2t64 libgbm1
       - name: Run native acceptance in a disposable vault
         run: xvfb-run -a --server-args='-screen 0 1280x1024x24' sh -c 'herbstluftwm & npm run test:e2e'
         env:
           OBSIDIAN_VERSION: ${{ matrix.version }}
           OBSIDIAN_UI: ${{ matrix.ui }}
-      - uses: actions/upload-artifact@v7
+          SOURCE_COMMIT: ${{ inputs.ref || github.sha }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: native-${{ matrix.version }}-${{ matrix.ui }}

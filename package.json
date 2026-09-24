@@ -22,6 +22,9 @@
     "check:architecture": "node scripts/check-architecture.mjs",
     "check:release": "node scripts/check-release.mjs",
     "check": "node scripts/run.mjs check",
+    "release:prepare": "node scripts/prepare-release.mjs",
+    "release:package": "node scripts/release.mjs package",
+    "release:verify": "node scripts/release.mjs verify",
     "version": "node scripts/version.mjs"
   },
   "devDependencies": {

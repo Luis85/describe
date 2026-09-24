@@ -1,11 +1,12 @@
-import { readFile, writeFile } from 'node:fs/promises';
-const read = async file => JSON.parse(await readFile(file, 'utf8'));
-const { version } = await read('package.json');
-if (!/^\d+\.\d+\.\d+$/u.test(version)) throw new Error('Use an unprefixed stable semantic version.');
-const manifest = await read('manifest.json');
+import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
+import { json, readJson, stableVersion } from './release-contract.mjs';
+
+const { version } = await readJson('package.json');
+stableVersion(version);
+const manifest = await readJson('manifest.json');
+const versions = await readJson('versions.json');
+assert.ok(!versions[version] || versions[version] === manifest.minAppVersion, 'Do not rewrite an existing compatibility entry.');
 manifest.version = version;
-const versions = await read('versions.json');
 versions[version] = manifest.minAppVersion;
-for (const [file, value] of [['manifest.json', manifest], ['versions.json', versions]]) {
-  await writeFile(file, JSON.stringify(value, null, 2) + '\n');
-}
+for (const [file, value] of [['manifest.json', manifest], ['versions.json', versions]]) await writeFile(file, json(value));

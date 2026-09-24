@@ -1,27 +1,99 @@
-name: Prepare draft release
+name: Release
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Prepared stable version, for example 1.0.0 (no v prefix)'
+        required: true
+        type: string
+      mode:
+        description: 'check makes no release changes; draft stages; publish requires a reviewed draft'
+        type: choice
+        required: true
+        default: check
+        options: [check, draft, publish]
+      approval:
+        description: 'For publish: paste "publish VERSION PAYLOAD_SHA256" from the draft summary'
+        type: string
+        default: ''
+      manual_checks:
+        description: 'I completed the manual/device/policy checklist for these exact assets'
+        type: boolean
+        default: false
+      evidence:
+        description: 'For publish: HTTPS link to the completed acceptance record'
+        type: string
+        default: ''
   push:
-    tags: ['[0-9]+.[0-9]+.[0-9]+']
+    tags: ['*']
 permissions:
   contents: read
+concurrency:
+  group: describe-release
+  cancel-in-progress: false
 jobs:
-  package:
+  plan:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: write
+    timeout-minutes: 5
+    outputs:
+      source: ${{ steps.plan.outputs.source }}
+      version: ${{ steps.plan.outputs.version }}
+      minimum: ${{ steps.plan.outputs.minimum }}
+      mode: ${{ steps.plan.outputs.mode }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: .nvmrc
           package-manager-cache: false
-      - run: npm ci
-      - run: npm run check
-      - run: node scripts/check-install.mjs
-      - run: node scripts/audit.mjs
-      - run: node scripts/release.mjs
+      - id: plan
+        run: node scripts/release.mjs plan
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version || github.ref_name }}
+          RELEASE_MODE: ${{ github.event_name == 'push' && 'draft' || inputs.mode }}
+  quality:
+    needs: plan
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.plan.outputs.source }}
+  native:
+    needs: plan
+    uses: ./.github/workflows/native.yml
+    with:
+      ref: ${{ needs.plan.outputs.source }}
+      baseline: ${{ needs.plan.outputs.minimum }}
+  distribute:
+    needs: [plan, quality, native]
+    if: needs.plan.outputs.mode != 'check'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: obsidian-release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ needs.plan.outputs.source }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: describe-verification-ubuntu-latest
+          path: .
+      # No npm install, lifecycle scripts, rebuild or app execution with a write token.
+      - name: Verify staged bytes and execute the requested transition
+        run: node scripts/release.mjs execute
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
+          RELEASE_MODE: ${{ needs.plan.outputs.mode }}
+          RELEASE_APPROVAL: ${{ inputs.approval }}
+          RELEASE_MANUAL_CHECKS: ${{ inputs.manual_checks }}
+          RELEASE_EVIDENCE: ${{ inputs.evidence }}

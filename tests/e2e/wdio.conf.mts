@@ -29,7 +29,7 @@ export const config: WebdriverIO.Config = {
     await writeFile(path.join(output, 'environment.json'), JSON.stringify({
       appVersion: browser.getObsidianVersion(), installerVersion: browser.getObsidianInstallerVersion(),
       platform: process.platform, ui: emulateMobile ? 'desktop mobile emulation, NOT a device test' : 'desktop',
-      commit: process.env.GITHUB_SHA ?? 'local',
+      commit: process.env.SOURCE_COMMIT ?? process.env.GITHUB_SHA ?? 'local',
     }, null, 2));
   },
   async afterTest(test, _context, result) {
