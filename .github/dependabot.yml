@@ -16,6 +16,12 @@ updates:
         patterns: ['*']
         exclude-patterns: ['vitest', '@vitest/*', 'webdriverio', 'wdio-obsidian-service', '@axe-core/*']
         update-types: [minor, patch]
+    ignore:
+      # Root typings describe the minimum supported Node major, not the newest Node release.
+      # Raise this major deliberately together with .nvmrc, engines, CI and acceptance tests.
+      # Minor/patch typings updates and the complete dependency audit remain enabled.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule:

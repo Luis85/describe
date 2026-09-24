@@ -10,7 +10,7 @@ interface Update {
   'package-ecosystem': string;
   'open-pull-requests-limit': number;
   groups: Record<string, Group>;
-  ignore?: Array<{ 'dependency-name': string; versions?: string[] }>;
+  ignore?: Array<{ 'dependency-name': string; versions?: string[]; 'update-types'?: string[] }>;
 }
 interface Step { uses?: string; run?: string; with?: Record<string, unknown> }
 interface Workflow { jobs: Record<string, { steps?: Step[] }> }
@@ -40,13 +40,15 @@ describe('dependency compatibility and update policy', () => {
     expect(coverage.version).toBe(pkg.devDependencies['@vitest/coverage-v8']);
   });
 
-  it('groups routine updates and removes the obsolete Mocha ignore condition', () => {
+  it('groups routine updates and limits the only major hold to baseline Node typings', () => {
     const npm = updates.find(update => update['package-ecosystem'] === 'npm');
     expect(npm?.groups['native-testing']?.['update-types']).toEqual(['minor', 'patch']);
     expect(npm?.groups['development-tooling']?.['update-types']).toEqual(['minor', 'patch']);
     expect(npm?.groups.vitest?.patterns).toEqual(['vitest', '@vitest/*']);
     expect(npm?.['open-pull-requests-limit']).toBeGreaterThan(0);
-    expect(updates.flatMap(update => update.ignore ?? [])).toEqual([]);
+    expect(updates.flatMap(update => update.ignore ?? [])).toEqual([
+      { 'dependency-name': '@types/node', 'update-types': ['version-update:semver-major'] },
+    ]);
     expect(readFileSync('scripts/audit.mjs', 'utf8')).toContain('--audit-level=moderate');
   });
 
