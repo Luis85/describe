@@ -5,13 +5,30 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Keep coupled Vitest releases together; other major migrations stay separate.
     groups:
-      native-testing:
-        patterns: ['@wdio/*', 'webdriverio', 'wdio-obsidian-*', 'mocha', '@types/mocha', '@axe-core/*']
       vitest:
         patterns: ['vitest', '@vitest/*']
+      native-testing:
+        patterns: ['@wdio/*', 'webdriverio', 'wdio-obsidian-*', 'mocha', '@types/mocha', '@axe-core/*']
+        update-types: [minor, patch]
+      development-tooling:
+        dependency-type: development
+        patterns: ['*']
+        exclude-patterns: ['vitest', '@vitest/*', '@wdio/*', 'webdriverio', 'wdio-obsidian-*', 'mocha', '@types/mocha', '@axe-core/*']
+        update-types: [minor, patch]
+    ignore:
+      # WDIO 9.32 imports mocha/lib/cli/run-helpers.js; Mocha 12 removes it.
+      # Revisit on adapter upgrades: issue #9 and docs/dependency-maintenance.md.
+      # Ignored ranges may constrain remediation suggestions; the full audit still blocks CI.
+      - dependency-name: mocha
+        versions: ['>=12.0.0 <13.0.0']
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
+    groups:
+      actions-compatible:
+        patterns: ['*']
+        update-types: [minor, patch]

@@ -65,7 +65,7 @@ Images, audio and video receive embed syntax; other types, including PDFs, recei
 
 After a release is published and the Community listing approved, install **Describe** through Obsidian's Community plugins settings. Until then, build locally or use an explicitly identified review package; repository availability alone does not mean a listing is live.
 
-Use **Node.js 24+ and npm 11+** for development:
+Use **Node.js 24.15.0+ within 24.x, or Node 26+, and npm 11+** for development. CI uses the current Node 24 release. Node 25 is not a supported development target; these requirements do not change Obsidian's embedded runtime.
 
 ```sh
 git clone https://github.com/Luis85/describe.git
@@ -75,7 +75,7 @@ npm run check
 npm run test-build
 ```
 
-For unmerged release-readiness changes, use the `chore/release-readiness` branch. Open the project directory as a disposable Obsidian vault and enable Describe. `test-build` installs only main.js, manifest.json and styles.css into the project's `.obsidian/plugins/describe/`, preserves existing data.json and unrelated vault settings, rejects unsafe linked destinations and does not enable the plugin automatically.
+Open the project directory as a disposable Obsidian vault and enable Describe. `test-build` installs only main.js, manifest.json and styles.css into the project's `.obsidian/plugins/describe/`, preserves existing data.json and unrelated vault settings, rejects unsafe linked destinations and does not enable the plugin automatically.
 
 Manual installation into another vault uses those same three assets from a verified release or `dist/`. Do not install test dependencies, coverage, fixtures, checksum metadata or screenshots as plugin runtime files. Back up important vaults before testing a new release.
 
@@ -84,7 +84,7 @@ Manual installation into another vault uses those same three assets from a verif
 | Command | Purpose |
 | --- | --- |
 | `npm run check` | Typecheck source and both test projects; run lints, ESLint policy probes, architecture, Vitest coverage, fallow, build and package checks. |
-| `npm run test` / `npm run test:coverage` | Deterministic unit, host-double and release-engineering tests. |
+| `npm run test` / `npm run test:coverage` | Deterministic unit, host-double, dependency-compatibility and release-engineering tests. |
 | `npm run test:e2e` | Build and test inside real Obsidian using fresh copied synthetic vaults. |
 | `npm run lint` / `npm run lint:oxlint` | Obsidian ESLint rules / Oxlint correctness. |
 | `npm run analyze` | fallow-rs dead-code analysis. |
@@ -96,6 +96,8 @@ Manual installation into another vault uses those same three assets from a verif
 **ESLint alone enforces LOC:** 400 source / 450 test code lines per file, excluding blank and comment-only lines. Lines containing code and an inline comment still count. All executable scripts live in `scripts/`. Strict TypeScript 7 checks cover source and all tests, including native tests. Release-script imports are enabled for typechecked TypeScript tests; this does not claim strict checking of all JavaScript scripts.
 
 The native compiler is installed through `@typescript/native`; the separate `typescript` import aliases Microsoft's TypeScript 6 JavaScript-API compatibility package for tooling. API typings are pinned independently from the required app version. Coverage floors are 90% lines, 85% statements/functions and 80% branches across production source.
+
+[Dependency maintenance](docs/dependency-maintenance.md) records reviewed upgrades, the tracked Mocha 12 compatibility hold and the policy for grouped routine updates versus major migrations. The full dependency audit stays enabled. CI also exercises the same full-SHA-pinned artifact downloader used by release, enforces digest checks and verifies the downloaded package byte-for-byte without publishing anything.
 
 Native local tests need a graphical session; Linux CI uses a virtual display. Initial execution downloads app/driver components. The native matrix covers minimum/latest app targets and desktop mobile emulation. The Linux/Windows/macOS Node matrix does not establish native app execution on all three systems, and desktop emulation is not actual iOS/Android testing. Exact versions and failure diagnostics are retained in CI artifacts.
 
@@ -126,4 +128,4 @@ Report defects with sanitized reproduction steps, version/commit, platform and e
 
 ## Documentation
 
-[Product PRD](docs/prds/describe.md) · [Release PRD](docs/prds/release-management.md) · [Architecture](docs/architecture.md) · [Test strategy](docs/testing.md) · [Testing research](docs/research/obsidian-plugin-testing.md) · [Host findings](docs/research/host-test-findings.md) · [Verification](docs/verification.md) · [Publishing research](docs/research/obsidian-plugin-publishing.md) · [Release runbook](docs/releasing.md) · [Manual acceptance](docs/releases/acceptance-template.md) · [Changelog](CHANGELOG.md)
+[Product PRD](docs/prds/describe.md) · [Release PRD](docs/prds/release-management.md) · [Architecture](docs/architecture.md) · [Test strategy](docs/testing.md) · [Dependency maintenance](docs/dependency-maintenance.md) · [Testing research](docs/research/obsidian-plugin-testing.md) · [Host findings](docs/research/host-test-findings.md) · [Verification](docs/verification.md) · [Publishing research](docs/research/obsidian-plugin-publishing.md) · [Release runbook](docs/releasing.md) · [Manual acceptance](docs/releases/acceptance-template.md) · [Changelog](CHANGELOG.md)
