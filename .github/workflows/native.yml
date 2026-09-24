@@ -1,0 +1,48 @@
+name: Native Obsidian acceptance
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: describe-native-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    name: Obsidian ${{ matrix.version }} / ${{ matrix.ui }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '1.13.7'
+            ui: desktop
+          - version: latest
+            ui: desktop
+          - version: '1.13.7'
+            ui: mobile-emulation
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Install virtual display dependencies
+        run: sudo apt-get update -q && sudo apt-get install -y xvfb herbstluftwm libnss3 libasound2t64 libgbm1
+      - name: Run native acceptance in a disposable vault
+        run: xvfb-run -a --server-args='-screen 0 1280x1024x24' sh -c 'herbstluftwm & npm run test:e2e'
+        env:
+          OBSIDIAN_VERSION: ${{ matrix.version }}
+          OBSIDIAN_UI: ${{ matrix.ui }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: native-${{ matrix.version }}-${{ matrix.ui }}
+          path: reports/native/
+          if-no-files-found: warn

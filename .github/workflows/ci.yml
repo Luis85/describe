@@ -1,0 +1,41 @@
+name: Quality and package verification
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: describe-quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    name: Verify (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test-build
+      - run: node scripts/check-install.mjs
+      - run: node scripts/audit.mjs
+        if: always()
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: describe-verification-${{ matrix.os }}
+          path: |
+            coverage/
+            dist/
+          if-no-files-found: error

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+coverage/
+.obsidian/
+.obsidian-cache/
+reports/
+*.tsbuildinfo
+*.log
+.DS_Store

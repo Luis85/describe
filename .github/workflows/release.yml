@@ -1,0 +1,27 @@
+name: Prepare draft release
+on:
+  push:
+    tags: ['[0-9]+.[0-9]+.[0-9]+']
+permissions:
+  contents: read
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm run check
+      - run: node scripts/check-install.mjs
+      - run: node scripts/audit.mjs
+      - run: node scripts/release.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
