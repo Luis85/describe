@@ -1,57 +1,59 @@
 # Architecture and engineering decisions
 
-## Boundaries
+## Runtime boundaries
 
 ```text
 src/
   domains/
     descriptions/     Source model, metadata, field errors, Markdown serialization
     storage/          Placement, eligibility, path/filename safety, settings schema
-    text.ts           Small shared character policy
+    text.ts           Shared character policy
   application/        Create-description use case, settings transactions, queues
   infrastructure/     Public Obsidian Vault adapter
-  presentation/       Modal, metadata fields, item picker, native declarative settings
-  main.ts             Plugin lifecycle and dependency composition
+  presentation/       Modal, metadata fields, picker, native declarative settings
+  main.ts             Lifecycle and dependency composition
 
 tests/
   domain/ application/ infrastructure/ presentation/ integration/
-  support/            Explicit test-only Obsidian and DOM doubles
-  e2e/                WebdriverIO native acceptance, separate TypeScript project
-    vault/            Synthetic fixtures copied per native test
+  release/            Release/dependency/transport contracts
+  native/             Fast tests of native-session ownership and result validation
+  support/            Host/DOM doubles and a pure session-lifecycle owner
+  e2e/                Actual Obsidian tests and a separate Node Vitest configuration
+    vault/            Synthetic fixtures copied for every native case
 
-scripts/              Build, install, native runner, release, quality executables
+scripts/              Build, install, test launchers, quality and release executables
 ```
 
-Domains/application have no host, DOM, filesystem or third-party imports. The application depends on a small DescriptionVault port; the adapter implements it. Presentation uses supplied callbacks. `main.ts` composes the dependencies. The architecture gate checks directions and forbids desktop-only runtime imports; the bundle check rejects non-host external dependencies.
+Domains/application have no host, DOM, filesystem or third-party imports. A small DescriptionVault port separates the use case from the Obsidian adapter. Presentation uses supplied callbacks; main.ts composes dependencies. Architecture checks enforce direction and prohibit desktop-only runtime imports. The bundle check rejects non-host external dependencies.
 
-## Writes, routing and shutdown
+## Persistence and lifecycle
 
-The create operation snapshots user input before joining a serialized queue. Source identity and eligibility are resolved at save time. Validation precedes directory creation. The adapter creates visible directories incrementally, tolerating only a real concurrent folder creation. The use case chooses a collision-free name, rechecks the source after asynchronous work and creates the note without replacing earlier notes.
+The create operation snapshots input before entering a serialized queue. Validate source identity, metadata and placement before creating directories. The adapter incrementally creates visible directories and tolerates only real concurrent folder creation. The use case chooses a collision-free name and rechecks the source after asynchronous work.
 
-Successful `Vault.create` is the commit point. Remembering a route and opening the note are optional follow-ups. Their failure produces warnings, not a retry invitation that could duplicate a committed note. Settings writes use a recovering queue and publish the cloned state only after successful persistence. A stale first-use dialog cannot replace a different route configured meanwhile; explicit settings-page edits remain supported.
+Successful Vault.create is the commit point. Route persistence and opening the note are optional follow-ups; their failure becomes a warning rather than inviting a duplicate retry. Settings writes clone the current mapping and publish the new state only after persistence succeeds. Stale first-use dialogs cannot replace a different newer route; explicit settings edits can.
 
-The plugin tracks initialization/unload separately. A late `loadData` completion cannot reactivate a stopped plugin. The source resolver checks activity before queued work and after directory creation. An already-dispatched host write may finish, but queued notes and optional UI follow-ups do not continue after shutdown. Closing/disposal is idempotent and no asynchronous callback updates disposed modal DOM.
+Delayed loadData completion cannot reactivate an unloaded plugin. The source resolver checks activity before queued writes and after directory creation. An already-dispatched host write may finish; queued writes and stale UI follow-ups must not continue. Modal disposal is idempotent. Eligibility uses the actual Vault.configDir across menus, picker, commands and adapter.
 
-## Metadata and interaction
+## Serialization and interaction
 
-Frontmatter uses JSON-encoded scalars/lists as YAML values, avoiding implicit type changes or property injection. Generated heading and link delimiters are escaped; user-authored Markdown remains text. Media embedding is an extension-based syntax policy, not a decoding guarantee. Folder references are not a custom navigation feature.
+JSON-encoded scalars/lists are valid YAML and preserve property types without injection. Generated headings and link delimiters are escaped; user-authored Markdown stays text. Media syntax is extension-based, not a codec guarantee. Folder links record a reference without implementing custom navigation.
 
-Validation errors carry a domain field identity rather than a DOM reference. Presentation uses it to reveal optional fields, set invalid state and focus the input. Unique help IDs, required-state attributes, an alert region and a distinct saving status make feedback explicit. The color clear action is a real disabled-capable button. A character summary explains the 80-code-point property without truncating the body.
+Domain validation errors identify fields, not DOM elements. Presentation reveals and focuses invalid inputs, uses uniquely associated help and required state, and separates error alerts from saving status. Color clearing is keyboard-operable. Name, aliases and color belong to the description note, not the original file.
 
-Eligibility is a domain policy reused by commands, picker, menu and adapter, including the actual `Vault.configDir`, not a hardcoded runtime configuration path. Optional color and aliases are properties of the description note; source files remain untouched.
+## Unified test runner, separate environments
 
-## Toolchain and tests
+Vitest owns both fast and native tests. The root configuration uses Node/jsdom and an explicit Obsidian double. The independent native configuration runs in Node and drives the built plugin inside actual Obsidian through standalone WebdriverIO. It does not use Browser Mode, the host mock, Mocha, a WDIO framework adapter or WDIO runner globals.
 
-TypeScript 7 is the mandatory compiler. TypeScript 6 supplies the JavaScript compiler API used by compatible tools. Root and native-test tsconfigs separate Vitest and Mocha/WebdriverIO types while typechecking all source and test files. Obsidian's API typings version is independent of the 1.13.7 minimum app version.
+The per-test native fixture owns a fresh browser session, synthetic copied vault and host profile. Explicit browser/page objects and Vitest polling replace runner globals/matchers. A pure SessionLifecycle abstraction owns partial startup, cancellation and idempotent teardown. The integration retains the pinned service worker to call afterSession() as well as browser.deleteSession(); the convenience startWdioSession helper does not own all that cleanup. Exported lifecycle hooks are marked hidden upstream, so their use is isolated, version-pinned and covered by actual cleanup tests rather than represented as a first-party Vitest adapter.
 
-ESLint alone enforces 400 source / 450 test **code lines per file**, excluding blanks and comment-only lines. The policy regression invokes ESLint at the boundaries; it is not a second line counter. Undefined identifiers remain a TypeScript responsibility, following the typescript-eslint guidance for TypeScript namespaces.
+The native result gate requires the eight product scenarios plus two real-session failure/cleanup checks. Missing or skipped cases do not pass release acceptance. JSON/JUnit and per-case artifacts record the actual environment. Unit tests exercise deterministic failure paths; native regressions demonstrate service cleanup after a real body/readiness failure. Abrupt process termination and upstream failures before remote returns are not claimed as fully cancellable transactions.
 
-Vitest handles detailed deterministic behavior and failures. Native tests load `dist/` in actual Obsidian and reset the full synthetic vault/settings state through fresh copies. They do not use the production code's test alias. The package's CommonJS shape and safe installation are independent gates. CI checks fast/package behavior on three desktop operating systems and real-host acceptance on Linux. Neither implies real iOS/Android execution.
+## Engineering and distribution
 
-Native-tool security overrides and the iframe-free Electron axe adapter are explained in [host-test findings](research/host-test-findings.md). They need both a clean dependency audit and executed native tests when updated. Automatic accessibility analysis is scoped to the plugin modal, not the host as a whole.
+TypeScript 7 checks source and both test projects. A separate TypeScript 6 JavaScript API alias serves compatible tools, not the compiler gate. Obsidian typings and the minimum app version are independently versioned.
 
-## Runtime and release
+ESLint alone enforces 400 source / 450 test code lines per file, excluding blanks and comment-only lines, including the native .mts configuration. Effective-policy probes use ESLint itself. Coverage includes all production TypeScript; it is not reported as release-script or fixture coverage.
 
-The shipped package contains `main.js`, `manifest.json` and `styles.css`. Only Obsidian is external; compiler/lint/test/native-automation dependencies never ship. CSS is scoped and theme-aware. The runtime has no network service, timers, indexes or source-content readers; the picker enumerates loaded items only on demand.
+Mocha and runner-specific dependencies, the compatibility hold and serializer override are removed. Keep independently justified security overrides under review and audit all development tools. The release workflow still requires quality and actual-host gates, exact source/artifact validation and explicit publication approval. No plugin source/schema/version changes are required for the runner migration.
 
-Keep future behavior in its owning layer, accompany bug fixes with regression tests and update the PRD/schema deliberately. Real host and device acceptance, a published GitHub release, and Community-directory approval are separate steps. See [testing](testing.md), [research](research/obsidian-plugin-testing.md) and [release guidance](releasing.md).
+Only main.js, manifest.json and styles.css ship. The runtime has no network service, background index or source-content reader. Compiler, lint and automation packages do not ship. Real-device acceptance and directory approval remain distinct from CI. See [testing](testing.md), [native integration](testing-vitest-native.md), [dependency maintenance](dependency-maintenance.md) and [release guidance](releasing.md).

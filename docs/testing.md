@@ -1,10 +1,10 @@
-# Test strategy, execution and release acceptance
+# Testing and release acceptance
 
-The rationale and primary sources are in [Obsidian plugin testing research](research/obsidian-plugin-testing.md). Concrete integration findings are in [host-test findings](research/host-test-findings.md). Results, not configuration, determine pass/fail; record the candidate SHA and CI run in [verification](verification.md).
+Current architecture: **Vitest for both fast and native acceptance tests**, with standalone WebdriverIO controlling real Obsidian in the native layer. [Vitest-native implementation](testing-vitest-native.md) documents the fixture, cleanup guarantees and pinned upstream integration. Earlier [testing research](research/obsidian-plugin-testing.md) and [host findings](research/host-test-findings.md) retain their historical context; the former Mocha runner and its compatibility hold are no longer active.
 
-## 1. Run the test layers
+## Execution
 
-Use Node 24+ / npm 11+ and the committed lockfile:
+Use the Node/npm versions declared in package.json and the committed lockfile:
 
 ```sh
 npm ci
@@ -15,91 +15,70 @@ node scripts/audit.mjs
 npm run test:e2e
 ```
 
-`check` does not automatically launch the graphical app. `test:e2e` is a distinct native suite and requires a graphical desktop session or the Linux virtual-display setup used by CI. Its initial run downloads app/driver components. The real plugin uses no such downloads at runtime.
+`check` runs the fast suite and package gates; it does not launch a graphical application. `test:e2e` builds `dist/` and launches real Obsidian under a separate Node-only Vitest configuration. Native execution requires a graphical session or the virtual-display setup in CI. Initial execution downloads app and driver components. The installed plugin does not perform these downloads.
 
-| Layer | Owner | What it proves |
+| Layer | Runner / environment | Contract |
 | --- | --- | --- |
-| Domain and application | Vitest | Schema, normalization, paths, queues, collisions, storage policy, controlled failure paths. |
-| Host-double and DOM | Vitest/jsdom | Adapter calls, plugin orchestration, field feedback, focus, busy state and lifecycle. Not host layout. |
-| Native acceptance | WebdriverIO/Obsidian service | Built plugin loading, actual commands/menu/modal, Vault writes, native settings, reloads and scoped accessibility/layout. |
-| Installer | Disposable Node fixtures | Correct assets, preservation of data/configuration and rejection of unsafe destinations. |
-| Device/manual | Tester with actual app/device | Touch, software keyboards, codecs, accessibility and platform-specific behavior absent from desktop emulation. |
+| Domain and application | Vitest / Node | Metadata, YAML, paths, queues, routing, collisions and injected failures. |
+| Host doubles and DOM | Vitest / jsdom | Host orchestration, modal fields, focus, error/busy feedback and lifecycle; not actual host layout. |
+| Native acceptance | Vitest / Node + standalone WebdriverIO | Built plugin in actual Obsidian, commands/menu/modal, Vault writes, native settings/popouts, persistence and scoped accessibility/layout. |
+| Native ownership | Unit tests plus two real-session failure cases | Partial startup, cancellation, idempotent teardown, copied-profile/vault cleanup and closed driver endpoint. |
+| Installer/release | Vitest and disposable Node fixtures | Asset identity, preservation, safe destinations, approvals and fail-closed publication contracts. |
+| Device/manual | Actual host/device and tester | Touch, software keyboard, codecs, platform interruption and full accessibility review. |
 
-## 2. Mandatory automated gates
+## Mandatory engineering gates
 
-Both TypeScript projects use **TypeScript 7**. The root project covers `src/`, unit/host-double tests and build configuration; `tests/e2e/tsconfig.json` covers native tests and their ESM configuration. No test directory escapes typechecking simply because it runs under another runner.
+TypeScript **7** checks `src/`, fast tests and their configuration, then the separate `tests/e2e/tsconfig.json` project. Native test types no longer include Mocha or WDIO test-runner globals. JavaScript release scripts imported by TypeScript tests are not thereby claimed to have complete strict JavaScript checking.
 
-**LOC belongs to ESLint only.** Use max-lines 400 for source and 450 for all `.ts`/`.mts` tests, with `skipBlankLines: true` and `skipComments: true`. Blank/comment-only lines do not count; a code line with an inline comment counts. `scripts/check-lint-policy.mjs` asks ESLint for its effective rules and exercises exactly-at-limit and over-limit fixtures with abundant comments/blanks. It does not count lines independently.
+**ESLint alone enforces LOC:** 400 source / 450 test code lines per file, excluding blank/comment-only lines. A code line with an inline comment still counts. Effective-policy probes invoke ESLint at the boundary, including `tests/e2e/vitest.config.mts`; there is no independent physical-line counter. Production Node-import restrictions remain enforced, with a separate real-rule probe for Node test exceptions.
 
-ESLint with the Obsidian recommended rules and Oxlint must report no lint warnings. TypeScript handles undefined identifiers/types because the JavaScript no-undef rule does not understand type namespaces. The test-only host exceptions do not apply to production code. Architecture checks reject forbidden dependencies; fallow-rs verifies explicit production/test/build entry points. Vite output and release-contract checks verify a direct CommonJS Plugin export with only `obsidian` external.
+Obsidian ESLint, Oxlint, architecture and fallow-rs gates remain mandatory. Unused structural test-double methods are verified through direct transport-contract tests rather than exempted from analysis. Coverage includes all production TypeScript, with minima 90% lines, 85% statements/functions and 80% branches. Percentages do not imply equivalent coverage of JavaScript release scripts or test infrastructure.
 
-Coverage includes **all `src/**/*.ts`**. Floors are 90% lines, 85% statements, 85% functions and 80% branches. These floors guard regressions, not functional completeness. Mock restoration and stub cleanup prevent cross-test pollution. Reject promise chains deterministically; do not solve races with arbitrary sleeps or retries.
+Audit the entire dependency graph at moderate severity and above. Tests ensure retired Mocha/runner packages are absent from the lockfile and installed graph, installed Vitest/coverage versions match, and no obsolete Dependabot hold or serializer override remains. Keep the separate browser-manager override under review.
 
-Audit the complete development dependency graph at moderate severity and above. Security compatibility overrides must be explained and revalidated against real native execution, not simply added until the audit appears clean.
+## Native fixture, isolation and evidence
 
-## 3. Regression portfolio
+Each product scenario owns a fresh standalone session, copied synthetic vault and host profile. A typed fixture supplies explicit browser, Obsidian page and UI helper objects. It never imports the fast suite's `obsidian` alias. Files and cases run sequentially, with no retries. UI checks use bounded `expect.poll()` calls rather than fixed sleeps.
 
-| Concern | Representative assertions |
-| --- | --- |
-| Document format | Independent YAML parsing, fixed type, correct list/string metadata, exactly 80 code points, complete body, safe heading and embed policy. |
-| Metadata boundaries | Empty/long/invalid values, nested/Unicode tags, duplicates, CR/CRLF/LF aliases, Unicode single-line limits, optional hex color. |
-| Placement | Three modes for files/folders, root mappings, nested subfolders, reserved names, traversal rejection, blocked directories. |
-| Preservation | Original item unchanged, existing description unchanged, deterministic collision suffix, settings rollback on failed persistence. |
-| Concurrency | Concurrent creates, external path race, input snapshot, moved/deleted/replaced sources, stale route conflict, queue recovery. |
-| Accessibility feedback | Required/help associations, metadata disclosure and focus, invalid-state clearing, separate saving status, keyboard-operable clear color, disabled controls. |
-| Lifecycle | Active-file gating, modal/picker disposal, initialization completing after unload, queued writes after shutdown and suppressed follow-ups. |
+The retained eight scenarios verify context-menu registration/cancellation, arbitrary-extension metadata, image/custom-subfolder behavior, selected-folder placement, invalid-input recovery and collision preservation, native declarative settings including popout windows, scoped axe/layout, and routing persistence after plugin reload.
 
-Native scenarios use the actual app's YAML parser and Vault API as well as interacting with the UI. The menu test triggers the host's file-menu event and clicks the real menu; an OS-level right-click or mobile long-press is still manual acceptance. The settings test selects the exact rendered row and checks its initial value before editing to avoid confusing a group container with a row.
+Two additional native scenarios deliberately reject the body or final initialization after acquiring a real session, then verify copied vault/profile removal and driver connection refusal. Pure lifecycle tests cover earlier startup failures, concurrent start/close and late acquisition on cancellation. The adapter calls the same package-root launcher/worker hooks as the standalone convenience helper but retains ownership to call `afterSession()` even after partial failure. The exports are marked hidden upstream; updates must retest this explicitly pinned seam. Abrupt OS termination and upstream driver failure before returning a session are outside the in-process ownership guarantee.
 
-## 4. Native isolation, versions and diagnostics
+The command validates Vitest's JSON report: all ten required scenario names must appear exactly once and every listed result must pass. Missing, duplicate, skipped, pending or failed cases cannot satisfy native release acceptance. Report-gate regression tests exercise the actual script using disposable JSON fixtures. Startup/test/teardown failures remain failures, not silent skips.
 
-Every test reloads a fresh copied synthetic vault. The service's ordinary resetVault helper does not reset plugin settings, so it is not sufficient for first-use routing tests. Never use a personal vault or `copy: false`. Tests run sequentially within each app session and use outcome-based waits and auto-retrying assertions.
+Artifacts under `reports/native/` include Vitest JSON/JUnit results and `cases/<test-id-name>/` environment records, screenshots, DOM, accessibility reports and cleanup evidence. Every environment record names the requested/resolved app, installer, OS, UI mode and source SHA. Distinguish product failures, test-fixture failures and download/driver failures using this evidence. A configured test or saved screenshot alone is not a passing result.
 
-The permanent native workflow runs on Linux:
+## Version and platform matrix
 
-| App target | UI target | Meaning |
+Fast quality/package/installer checks run on Linux, Windows and macOS. Native application checks run on Linux for the minimum required app, latest public app, and the minimum app in 390 × 844 desktop mobile emulation. The app and installer versions are recorded separately; latest can resolve to the same version as the minimum. Never claim this as two distinct versions without the records.
+
+The menu scenario triggers Obsidian's documented `file-menu` event and interacts with a real menu; OS-level right-click/long-press remains manual. Desktop mobile emulation does not establish actual iOS/Android execution. No iOS/Android platform is added by changing the runner.
+
+## Accessibility and installation
+
+Axe remains scoped to the plugin modal with WCAG A/AA rules enabled. Electron lacks the normal window/new aggregation path, so the documented same-window fallback is used after asserting no iframe is present. Incomplete/manual-review findings are preserved, not counted as passes. Automatic checks and horizontal-overflow assertions do not establish complete WCAG conformance or certify other plugins/themes.
+
+The six installer contracts copy the exact installer into disposable fixtures and verify fresh assets, preservation of data.json and vault settings, incomplete packages, obstructing files, linked directories and unsafe identifiers. The artifact-transfer smoke check uses the release downloader and compares all five release-package files byte-for-byte. Neither creates a public release.
+
+## Manual and device acceptance
+
+Use [the release acceptance template](releases/acceptance-template.md) and record date, tester, exact SHA, Obsidian app/installer, OS/device and theme. Do not infer device acceptance from the manifest or CI platform name.
+
+| ID | Scenario | Required observation |
 | --- | --- | --- |
-| 1.13.7 | Desktop | Required minimum app acceptance. |
-| Latest public version | Desktop | Forward-compatibility signal; resolved version recorded. |
-| 1.13.7 | Desktop mobile emulation at 390 × 844 | Narrow layout/mobile-style interaction, **not** an iOS or Android test. |
+| SM-01 | Install, enable, reload and disable the three release assets. | No load errors, duplicate menus or stale dialogs. |
+| SM-02 | Actual right-click/long-press on Markdown, custom extension, extensionless file and folder. | Describe is reachable and originals remain intact. |
+| SM-03 | Cancel/save an unknown type, then reload. | Only successful creation learns the route. |
+| SM-04 | Three destination modes, vault root, nested subfolder and selected-folder placement. | Preview and saved path agree without replacing existing content. |
+| SM-05 | Unicode/long metadata, aliases containing commas and clearing color. | Stable YAML types, complete body and correct summary. |
+| SM-06 | Settings search/filter/edit/delete, including native popouts. | Correct row changes and persistence. |
+| SM-07 | Invalid metadata/path and read-only destinations. | Recoverable error, preserved draft, invalid field revealed and focused. |
+| SM-08 | Source move/delete/type change during editing or saving. | Safe resolution or explicit failure, not silent wrong routing. |
+| SM-09 | Supported/unsupported image, sound and video codecs. | Actual per-platform playback limits recorded. |
+| SM-10 | Folder links and reserved/Unicode filename characters. | Navigation tested explicitly; folder links are not promised native navigation. |
+| SM-11 | Keyboard, IME, screen reader, zoom, light/dark themes. | Visible focus, accurate help/status, no accidental composition submit. |
+| SM-12 | Real iOS/Android keyboard, touch, orientation, interruption/backgrounding. | Actions stay reachable and entry/recovery works. |
+| SM-13 | Concurrent first-use dialogs and settings edits. | Newer route preserved; committed notes not duplicated by misleading retry. |
+| SM-14 | Local reinstall with existing plugin data. | Only main.js, manifest.json and styles.css replaced. |
 
-App and Electron installer versions are distinct. The environment artifact records the resolved versions, platform, UI mode and commit. Do not silently downgrade the required version when downloads fail. A `latest` run is reproducible only with its recorded resolved versions.
-
-Failure artifacts include screenshots and DOM snapshots in `reports/native/`. The suite also writes scoped accessibility results and a successful-modal screenshot. Host failures may be product defects, selector mistakes, driver limitations or download/infrastructure failures; inspect evidence before classifying them. Disabled/skipped/unexecuted cases never count as passed.
-
-### Electron accessibility adapter
-
-The driver rejects WebDriver window/new, which axe normally uses for result aggregation. The documented `setLegacyMode()` fallback scans in place. Tests assert the modal has no iframe and keep WCAG 2 A/AA and 2.1 AA rules enabled. Cross-origin iframe analysis is not available in this mode and is not claimed. No component outside Describe is certified by this scan. Manual accessibility evaluation remains required.
-
-## 5. Installer contracts
-
-After a production build, `node scripts/check-install.mjs` copies the exact installer into disposable fixtures and substitutes only a no-op build step. It verifies six cases: fresh installation copies exactly three assets; reinstallation preserves data.json and unrelated vault settings; incomplete packages do not replace existing assets; obstructing files remain intact; linked directories cannot redirect writes; unsafe manifest identifiers are rejected. It never modifies a user's vault.
-
-The normal CI matrix runs type/lint/unit/build/installer checks on Linux, Windows and macOS. That is cross-platform tooling evidence, not native Obsidian execution on all three systems.
-
-## 6. Remaining manual and real-device checklist
-
-Record date, tester, SHA, operating system, Obsidian app/installer version, theme and device. Use a disposable vault and sanitized fixtures. Before claiming each platform validated, execute its matrix rather than inferring it from a manifest or emulation flag.
-
-| ID | Scenario | Expected result |
-| --- | --- | --- |
-| SM-01 | Install three release assets and enable/reload/disable. | No load errors, missing dependencies, stale dialogs or duplicate menu registrations. |
-| SM-02 | Actual right-click/long-press on Markdown, custom extension, extensionless file and non-root folder. | Describe is reachable; originals remain unchanged. |
-| SM-03 | Cancel then save an unknown type; reopen after a reload. | Cancellation leaves type unknown; successful mapping persists. |
-| SM-04 | All placement modes, nested custom subfolder, blank configured root and selected folder. | Preview/saved destination agree; no unintended overwrite. |
-| SM-05 | Unicode metadata, aliases with commas, long Markdown and color clearing. | Correct types, full body, 80-code-point summary, no unintended color value. |
-| SM-06 | Settings search, filter/edit/delete known-type rows, global settings search and reload. | Correct native row changes and persistence. |
-| SM-07 | Invalid metadata/path and read-only destination. | Clear error; draft retained; invalid optional field revealed and focused. |
-| SM-08 | Move/delete/change source type during a modal or save. | Safe resolution or explicit recoverable error, never a silent orphan or wrong-type route. |
-| SM-09 | Supported and unsupported image/audio/video codecs. | Correct syntax; actual playback limitations recorded per platform. |
-| SM-10 | Folder references, spaces, Unicode and reserved characters in source filenames. | Verify navigation explicitly; document non-native folder behavior and unusual-name limitations. |
-| SM-11 | Keyboard-only use, modifier+Enter, IME composition, zoom, light/dark themes and screen reader. | Usable focus, labels, help and status; no accidental IME submit; color is not the only signal. |
-| SM-12 | iOS/Android software keyboard, touch, orientation, interrupted/backgrounded app. | Controls remain reachable and entry/recovery works without data loss. |
-| SM-13 | Concurrent first-use dialogs and settings edit. | Newer route is preserved; a committed note is not duplicated by a misleading error. |
-| SM-14 | Rebuild into a local vault with existing plugin data. | Only the three assets change; configuration and data remain intact. |
-
-Android service/Appium automation is a documented future layer, not implemented here. The researched Obsidian service does not support iOS; actual iOS acceptance remains manual. No automated scan alone establishes complete WCAG conformance.
-
-## 7. Release evidence
-
-Record exact SHA, successful workflow runs, counts/coverage, audit date/result, app versions and native targets, installer results, manual/device outcomes, limitations and asset hashes. Distinguish **passed**, **failed**, **blocked** and **not run**. CI configuration, a generated artifact, and Community-directory approval are three different things. The current record is `verification.md`.
+Before release, record exact candidate checks, native results, audit, manual/device status and asset hashes. Report unexecuted checks as **not run** and infrastructure failures as **blocked**. Publication and Community-directory approval remain separate maintainer/reviewer actions.
