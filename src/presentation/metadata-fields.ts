@@ -10,7 +10,8 @@ export function addMetadataFields(parent: HTMLElement, draft: DescriptionInput):
   textField(details, 'Category', 'An optional category for this item.', '', value => { draft.category = value; });
   let colorText: TextComponent | undefined;
   let updatePicker: ((value: string) => void) | undefined;
-  const colorSetting = new Setting(details).setName('Color').setDesc('Optional hex color. Clear it to leave the item uncolored.')
+  const colorSetting = new Setting(details).setName('Color').setClass('describe-color')
+    .setDesc('Optional hex color. Clear it to leave the item uncolored.')
     .addColorPicker(picker => {
       updatePicker = value => { picker.setValue(value); };
       picker.setValue('#3388cc').onChange(value => { draft.color = value; colorText?.setValue(value); });

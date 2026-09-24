@@ -9,6 +9,8 @@
 .describe-modal textarea { width: 100%; min-height: 5rem; resize: vertical; }
 .describe-modal .describe-metadata { border-block: 1px solid var(--background-modifier-border); padding-block: var(--size-4-2); }
 .describe-modal summary { cursor: pointer; padding-block: var(--size-4-2); font-weight: var(--font-semibold); }
+.describe-modal .describe-color { display: block; }
+.describe-modal .describe-color .setting-item-control { justify-content: flex-start; flex-wrap: wrap; margin-top: var(--size-4-2); }
 .describe-modal .describe-first-use { background: var(--background-secondary); padding: var(--size-4-3); border-radius: var(--radius-s); }
 .describe-modal .describe-error { color: var(--text-error); white-space: pre-wrap; }
 .describe-modal .describe-error:empty,
@@ -17,8 +19,7 @@
 .describe-modal .describe-actions { position: sticky; bottom: 0; background: var(--background-primary); border-top: 1px solid var(--background-modifier-border); padding-block: var(--size-4-3); z-index: 1; }
 .describe-modal .setting-item-control { min-width: 0; gap: var(--size-4-2); }
 .describe-modal .describe-actions .setting-item-control { flex-wrap: wrap; }
-/* Accent colors are user-configurable and may not support white button text.
-   Use the host's normal readable text/surface pair, with accent as a border cue. */
+/* User accents need not contrast with white text: keep a readable host surface/text pair. */
 .describe-modal .describe-actions button.mod-cta { background-color: var(--interactive-normal); color: var(--text-normal); border: 1px solid var(--interactive-accent); font-weight: var(--font-semibold); }
 .describe-modal .describe-actions button.mod-cta:hover { background-color: var(--interactive-hover); color: var(--text-normal); }
 .describe-modal [aria-invalid="true"] { border-color: var(--text-error); }
