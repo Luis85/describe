@@ -22,7 +22,9 @@ const updates = (parse(readFileSync('.github/dependabot.yml', 'utf8')) as { upda
 
 describe('dependency compatibility and update policy', () => {
   it('uses the same Mocha instance in native tests and the installed WebdriverIO adapter', () => {
-    const adapterRequire = createRequire(nodeRequire.resolve('@wdio/mocha-framework'));
+    // The adapter's entry point is import-only. Its public manifest anchors dependency resolution
+    // in the same package without trying to load the ESM adapter through CommonJS.
+    const adapterRequire = createRequire(nodeRequire.resolve('@wdio/mocha-framework/package.json'));
     expect(adapterRequire.resolve('mocha')).toBe(nodeRequire.resolve('mocha'));
     const resolved = readPackage(adapterRequire.resolve('mocha/package.json'));
     expect(resolved.version).toBe(pkg.devDependencies.mocha);
