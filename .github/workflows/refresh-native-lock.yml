@@ -1,0 +1,20 @@
+name: Initialize native test dependencies
+on:
+  push:
+    branches: [feat/describe-plugin]
+    paths: [scripts/refresh-native-lock.mjs]
+permissions:
+  contents: write
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - run: node scripts/refresh-native-lock.mjs
+      - run: npm ci
+      - run: npm run check

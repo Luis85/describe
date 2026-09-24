@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/fallow/schema.json",
-  "entry": ["src/main.ts", "tests/**/*.test.ts", "tests/support/dom.ts", "scripts/*.mjs", "vite.config.ts", "vitest.config.ts", "eslint.config.mjs"],
-  "ignorePatterns": ["dist/**", "coverage/**", ".obsidian/**"],
-  "ignoreDependencies": ["@typescript/native", "@types/node", "@vitest/coverage-v8", "jsdom", "oxlint", "fallow", "eslint"],
+  "entry": ["src/main.ts", "tests/**/*.test.ts", "tests/e2e/**/*.e2e.ts", "tests/e2e/wdio.conf.mts", "tests/support/dom.ts", "scripts/*.mjs", "vite.config.ts", "vitest.config.ts", "eslint.config.mjs"],
+  "ignorePatterns": ["dist/**", "coverage/**", ".obsidian/**", ".obsidian-cache/**", "reports/**", "tests/e2e/vault/**"],
+  "ignoreDependencies": ["@typescript/native", "@types/node", "@types/mocha", "@vitest/coverage-v8", "jsdom", "oxlint", "fallow", "eslint", "@wdio/cli", "@wdio/local-runner", "@wdio/mocha-framework", "@wdio/spec-reporter", "wdio-obsidian-reporter", "tsx", "webdriverio"],
   "ignoreExportsUsedInFile": true
 }

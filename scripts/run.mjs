@@ -6,6 +6,7 @@ const tasks = {
     if (!/^Version 7\./u.test(version)) throw new Error(`TypeScript 7 is required; found ${version}. Run npm ci.`);
     console.log(version);
     run('tsc', ['--noEmit', '-p', 'tsconfig.json']);
+    run('tsc', ['--noEmit', '-p', 'tests/e2e/tsconfig.json']);
   },
   test() { run('vitest', ['run']); },
   coverage() { run('vitest', ['run', '--coverage']); },
@@ -14,7 +15,7 @@ const tasks = {
   fallow() { run('fallow', ['dead-code']); },
   async check() {
     const gates = [
-      ['TypeScript 7', tasks.typecheck], ['ESLint (including code-line limits)', tasks.lint], ['Oxlint', tasks.oxlint],
+      ['TypeScript 7 (source, unit and native tests)', tasks.typecheck], ['ESLint (including code-line limits)', tasks.lint], ['Oxlint', tasks.oxlint],
       ['ESLint policy regression', () => import('./check-lint-policy.mjs')],
       ['Architecture', () => import('./check-architecture.mjs')],
       ['Tests and coverage', tasks.coverage], ['Fallow', tasks.fallow],
