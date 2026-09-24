@@ -1,0 +1,28 @@
+name: Initial dependency verification
+on:
+  push:
+    branches: [feat/describe-plugin]
+permissions:
+  contents: write
+jobs:
+  initialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/bootstrap-lock.mjs
+      - run: npm ci
+      - run: npm run check
+      - run: npm run test-build
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: initial-verification
+          path: |
+            package-lock.json
+            coverage/
+            dist/
+          if-no-files-found: ignore

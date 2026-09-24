@@ -1,0 +1,10 @@
+{
+  "id": "describe",
+  "name": "Describe",
+  "version": "1.0.0",
+  "minAppVersion": "1.13.7",
+  "description": "Create structured description notes for files and folders, with metadata and per-extension storage.",
+  "author": "Luis Mendez",
+  "authorUrl": "https://github.com/Luis85",
+  "isDesktopOnly": false
+}

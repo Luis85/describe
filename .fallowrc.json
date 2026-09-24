@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "entry": ["src/main.ts", "tests/**/*.test.ts", "tests/support/dom.ts", "scripts/*.mjs", "vite.config.ts", "vitest.config.ts", "eslint.config.mjs"],
+  "ignorePatterns": ["dist/**", "coverage/**", ".obsidian/**"],
+  "ignoreDependencies": ["@typescript/native", "@types/node", "@vitest/coverage-v8", "jsdom", "oxlint", "fallow", "eslint"],
+  "ignoreExportsUsedInFile": true
+}

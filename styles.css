@@ -1,0 +1,23 @@
+.describe-modal { max-width: 44rem; }
+.describe-modal .describe-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+.describe-modal .describe-source,
+.describe-modal .describe-destination { overflow-wrap: anywhere; color: var(--text-muted); font-size: var(--font-ui-small); }
+.describe-modal .describe-field input { width: 100%; }
+.describe-modal .describe-multiline { display: block; }
+.describe-modal .describe-multiline .setting-item-control { margin-top: var(--size-4-2); }
+.describe-modal textarea { width: 100%; min-height: 5rem; resize: vertical; }
+.describe-modal .describe-metadata { border-block: 1px solid var(--background-modifier-border); padding-block: var(--size-4-2); }
+.describe-modal summary { cursor: pointer; padding-block: var(--size-4-2); font-weight: var(--font-semibold); }
+.describe-modal .describe-first-use { background: var(--background-secondary); padding: var(--size-4-3); border-radius: var(--radius-s); }
+.describe-modal .describe-error { color: var(--text-error); white-space: pre-wrap; }
+.describe-modal .describe-error:empty { display: none; }
+.describe-modal .describe-hidden { display: none; }
+.describe-modal .describe-actions { border-top: 0; }
+.describe-modal .describe-actions .setting-item-control { flex-wrap: wrap; }
+.describe-modal :focus-visible { outline: 2px solid var(--interactive-accent); outline-offset: 2px; }
+@media (max-width: 600px) {
+  .describe-modal .setting-item { flex-wrap: wrap; gap: var(--size-4-2); }
+  .describe-modal .setting-item-control { width: 100%; }
+  .describe-modal input[type="text"], .describe-modal select { max-width: 100%; flex: 1; min-width: 0; }
+  .describe-modal button, .describe-modal summary { min-height: 44px; }
+}

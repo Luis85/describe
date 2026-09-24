@@ -1,0 +1,42 @@
+{
+  "name": "describe-obsidian-plugin",
+  "version": "1.0.0",
+  "description": "Structured descriptions for every file and folder in your vault.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "author": "Luis Mendez",
+  "repository": { "type": "git", "url": "git+https://github.com/Luis85/describe.git" },
+  "engines": { "node": ">=22.12.0" },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch",
+    "test-build": "node scripts/test-build.mjs",
+    "typecheck": "node scripts/run.mjs typecheck",
+    "test": "node scripts/run.mjs test",
+    "test:coverage": "node scripts/run.mjs coverage",
+    "lint": "node scripts/run.mjs lint",
+    "lint:oxlint": "node scripts/run.mjs oxlint",
+    "analyze": "node scripts/run.mjs fallow",
+    "check:loc": "node scripts/check-loc.mjs",
+    "check:architecture": "node scripts/check-architecture.mjs",
+    "check:release": "node scripts/check-release.mjs",
+    "check": "node scripts/run.mjs check",
+    "version": "node scripts/version.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "@typescript/native": "npm:typescript@7.0.2",
+    "@vitest/coverage-v8": "4.1.9",
+    "eslint": "9.39.1",
+    "eslint-plugin-obsidianmd": "0.3.0",
+    "fallow": "3.5.0",
+    "jsdom": "26.1.0",
+    "obsidian": "1.13.2",
+    "oxlint": "1.85.0",
+    "typescript": "npm:@typescript/typescript6@6.0.2",
+    "vite": "8.3.0",
+    "vitest": "4.1.9",
+    "yaml": "2.8.1"
+  }
+}
