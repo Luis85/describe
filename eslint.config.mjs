@@ -8,7 +8,13 @@ if (!parser) throw new Error('The Obsidian ESLint preset must provide a TypeScri
 export default defineConfig([
   { ignores: ['dist/**', 'coverage/**', '.obsidian/**', '.obsidian-cache/**', 'reports/**', 'scripts/**', '*.config.ts', '*.config.mjs'] },
   ...obsidianmd.configs.recommended,
-  { files: ['src/**/*.ts', 'tests/**/*.{ts,mts}'], languageOptions: { parser, parserOptions: { projectService: true } } },
+  {
+    files: ['src/**/*.ts', 'tests/**/*.{ts,mts}'],
+    languageOptions: { parser, parserOptions: { projectService: true } },
+    // TypeScript 7 checks undefined names and third-party type namespaces in both test projects.
+    // The JS-only rule cannot resolve them: typescript-eslint.io/troubleshooting/faqs/eslint/.
+    rules: { 'no-undef': 'off' },
+  },
   {
     files: ['src/**/*.ts'],
     rules: { 'max-lines': ['error', { max: 400, skipBlankLines: true, skipComments: true }] },

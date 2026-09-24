@@ -23,11 +23,11 @@ describe('Describe in the real Obsidian host', () => {
       app.workspace.trigger('file-menu', menu, file, 'file-explorer');
       menu.showAtPosition({ x: 40, y: 40 });
     });
-    const entries = browser.$$('.menu-item-title=Describe!');
-    await expect(entries).toBeElementsArrayOfSize(1);
+    await expect(browser.$$('.menu-item-title=Describe!')).toBeElementsArrayOfSize(1);
     await browser.$('.menu-item-title=Describe!').click();
     await expect(modal()).toBeDisplayed();
-    await browser.$('.describe-modal button=Cancel').click();
+    await modal().$('button=Cancel').click();
+    await expect(modal()).not.toExist();
     assert.deepEqual((await settings()).extensionPaths, {});
     assert.equal(await browser.executeObsidian(({ app }) => app.vault.getFolderByPath('Descriptions') !== null), false);
   });
@@ -53,6 +53,7 @@ describe('Describe in the real Obsidian host', () => {
   });
 
   it('creates a custom local folder and embeds an image without modifying it', async () => {
+    const original = await obsidianPage.read('Assets/reference.svg');
     await choose('Assets/reference.svg');
     await fill('Image description');
     await field('Save this description in').selectByAttribute('value', 'subfolder');
@@ -60,6 +61,7 @@ describe('Describe in the real Obsidian host', () => {
     await expect(browser.$('.describe-destination')).toHaveText(expect.stringContaining('Assets/Metadata/Descriptions/Image description.md'));
     const note = await save('Assets/Metadata/Descriptions/Image description.md');
     assert.ok(note.includes('![[Assets/reference.svg]]'));
+    assert.equal(await obsidianPage.read('Assets/reference.svg'), original);
     const resolved = await browser.executeObsidian(({ app }) =>
       app.metadataCache.getFirstLinkpathDest('Assets/reference.svg', 'Assets/Metadata/Descriptions/Image description.md')?.path);
     assert.equal(resolved, 'Assets/reference.svg');
@@ -105,7 +107,10 @@ describe('Describe in the real Obsidian host', () => {
   it('renders native declarative settings rather than a mocked settings tab', async () => {
     await browser.executeObsidianCommand('app:open-settings');
     await browser.$('.vertical-tab-nav-item=Describe').click();
-    const subfolder = browser.$('//div[contains(@class,"setting-item")][.//div[text()="Descriptions subfolder"]]//input');
+    // Match a complete class token: a group whose name contains "setting-item" is not this row.
+    const row = '//div[contains(concat(" ",normalize-space(@class)," ")," setting-item ")]';
+    const subfolder = browser.$(`${row}[.//div[@class="setting-item-name" and normalize-space(.)="Descriptions subfolder"]]//input`);
+    await expect(subfolder).toHaveValue('descriptions');
     await subfolder.setValue('Context');
     await browser.keys('Tab');
     await browser.waitUntil(async () => (await settings()).subfolder === 'Context');
@@ -118,7 +123,10 @@ describe('Describe in the real Obsidian host', () => {
   it('has no automated WCAG A/AA violations or horizontal modal overflow', async () => {
     await choose('Assets/reference.svg');
     await browser.$('.describe-metadata summary').click();
-    const result = await new AxeBuilder({ client: browser }).include('.describe-modal')
+    await expect(modal().$$('iframe')).toBeElementsArrayOfSize(0);
+    // Electron rejects WebDriver window/new. Documented axe fallback scans this iframe-free modal
+    // in place; no accessibility rules are disabled. Cross-origin frames are outside this scope.
+    const result = await new AxeBuilder({ client: browser }).include('.describe-modal').setLegacyMode()
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
     await writeFile('reports/native/accessibility.json', JSON.stringify(result, null, 2));
     assert.deepEqual(result.violations.map(violation => ({ id: violation.id, nodes: violation.nodes.map(node => node.target) })), []);
@@ -127,5 +135,6 @@ describe('Describe in the real Obsidian host', () => {
       return element !== null && element.scrollWidth <= element.clientWidth + 1;
     });
     assert.equal(fits, true);
+    await browser.saveScreenshot('reports/native/description-modal.png');
   });
 });

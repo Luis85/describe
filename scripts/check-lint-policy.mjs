@@ -3,7 +3,8 @@ import { ESLint } from 'eslint';
 
 // Test ESLint's actual effective policy; do not implement a second line counter.
 const repositoryLinter = new ESLint();
-for (const [filePath, max] of [['src/main.ts', 400], ['tests/support/app.ts', 450]]) {
+const probes = [['src/main.ts', 400], ['tests/support/app.ts', 450], ['tests/e2e/wdio.conf.mts', 450]];
+for (const [filePath, max] of probes) {
   const config = await repositoryLinter.calculateConfigForFile(filePath);
   const rule = config.rules['max-lines'];
   assert.deepEqual(rule, [2, { max, skipBlankLines: true, skipComments: true }]);
