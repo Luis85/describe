@@ -4,6 +4,9 @@ on:
     branches: [feat/describe-plugin]
 permissions:
   contents: write
+concurrency:
+  group: describe-bootstrap
+  cancel-in-progress: true
 jobs:
   initialize:
     runs-on: ubuntu-latest
@@ -12,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
       - run: node scripts/bootstrap-lock.mjs
       - run: npm ci
       - run: npm run check
