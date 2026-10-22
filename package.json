@@ -28,7 +28,7 @@
     "version": "node scripts/version.mjs"
   },
   "devDependencies": {
-    "@axe-core/webdriverio": "4.13.0",
+    "@axe-core/webdriverio": "4.14.0",
     "@types/node": "24.13.6",
     "@typescript/native": "npm:typescript@7.0.2",
     "@vitest/coverage-v8": "5.0.1",
@@ -41,7 +41,7 @@
     "typescript": "npm:@typescript/typescript6@6.0.2",
     "vite": "8.3.0",
     "vitest": "5.0.1",
-    "wdio-obsidian-service": "3.2.1",
+    "wdio-obsidian-service": "3.3.0",
     "webdriverio": "9.32.0",
     "yaml": "2.9.1"
   },
